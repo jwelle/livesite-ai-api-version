@@ -176,7 +176,7 @@ Be professional, concise, and helpful.`;
               </div>
               <div className="sm:col-span-2">
                 <div className="text-sm text-muted-foreground mb-1">Calendar Link</div>
-                <div className="font-medium text-blue-400 break-all">{demo.ctaCalendarLink || "—"}</div>
+                <div className="font-medium text-primary break-all">{demo.ctaCalendarLink || "—"}</div>
               </div>
               <div className="sm:col-span-2">
                 <div className="text-sm text-muted-foreground mb-1">Created At</div>
