@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "0w1Y2AFo3O-67_OInFmLG"
+uri = "file://TECHNICAL_OVERVIEW.md"
+type = "text"
+title = "Live Site AI — Technical & Product Overview"
