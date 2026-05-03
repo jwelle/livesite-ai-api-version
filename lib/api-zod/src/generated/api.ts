@@ -1083,7 +1083,9 @@ export const GetDemoPromptVersionsParams = zod.object({
 export const GetDemoPromptVersionsResponseItem = zod.object({
   id: zod.string(),
   demoId: zod.string(),
-  type: zod.string().describe("ai_generated | regenerated | manual_save"),
+  type: zod
+    .string()
+    .describe("ai_generated | user_edited | regenerated | final_saved"),
   promptText: zod.string(),
   notes: zod.string().nullish(),
   createdAt: zod.coerce.date(),

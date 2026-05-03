@@ -1219,7 +1219,7 @@ components:
       properties:
         id: { type: string }
         demoId: { type: string }
-        type: { type: string, description: "ai_generated | regenerated | manual_save" }
+        type: { type: string, description: "ai_generated | user_edited | regenerated | final_saved" }
         promptText: { type: string }
         notes: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }

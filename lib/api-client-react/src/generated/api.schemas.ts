@@ -436,7 +436,7 @@ export interface PushGhlResult {
 export interface PromptVersion {
   id: string;
   demoId: string;
-  /** ai_generated | regenerated | manual_save */
+  /** ai_generated | user_edited | regenerated | final_saved */
   type: string;
   promptText: string;
   notes?: string | null;
