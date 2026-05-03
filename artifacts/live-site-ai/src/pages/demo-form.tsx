@@ -58,7 +58,7 @@ const formSchema = z.object({
   serviceArea: z.string().optional(),
   customDemoMessage: z.string().optional(),
   internalNotes: z.string().optional(),
-  status: z.enum(["active", "inactive", "draft"]),
+  status: z.enum(["active", "inactive", "draft", "enriched", "edited", "approved", "copied", "pushed_to_ghl", "failed"]),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -134,7 +134,9 @@ export default function DemoForm() {
         serviceArea: demo.serviceArea || "",
         customDemoMessage: demo.customDemoMessage || "",
         internalNotes: demo.internalNotes || "",
-        status: (demo.status === "active" || demo.status === "inactive" || demo.status === "draft") ? demo.status : "draft",
+        status: ([
+          "active", "inactive", "draft", "enriched", "edited", "approved", "copied", "pushed_to_ghl", "failed",
+        ] as const).includes(demo.status as never) ? (demo.status as FormValues["status"]) : "draft",
       });
     }
   }, [demo, isEdit, form]);
@@ -262,6 +264,12 @@ export default function DemoForm() {
                       <SelectItem value="draft">Draft</SelectItem>
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="enriched">Enriched</SelectItem>
+                      <SelectItem value="edited">Edited</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="copied">Copied</SelectItem>
+                      <SelectItem value="pushed_to_ghl">Pushed to GHL</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
