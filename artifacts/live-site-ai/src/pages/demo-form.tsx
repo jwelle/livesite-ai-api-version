@@ -8,6 +8,7 @@ import {
   useUpdateDemo,
   useGetDemo,
   useEnrichBusiness,
+  useEnrichDemo,
   useGetOpenAIStatus,
   getGetDemoQueryKey,
   getGetDemosQueryKey,
@@ -68,6 +69,7 @@ export default function DemoForm() {
   const createDemo = useCreateDemo();
   const updateDemo = useUpdateDemo();
   const enrichBusiness = useEnrichBusiness();
+  const enrichDemo = useEnrichDemo();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -110,56 +112,57 @@ export default function DemoForm() {
     }
   }, [demo, isEdit, form]);
 
+  // Enrich With AI: persist the demo (create or update), then run /enrich on
+  // the saved demo so the structured business profile + final voice-agent
+  // prompt are stored, then navigate the user straight to the prompt editor.
   const handleEnrichWithAI = async () => {
     const values = form.getValues();
-    if (!values.companyName || !values.websiteUrl) {
-      toast({ title: "Need business name and website URL first", variant: "destructive" });
-      return;
-    }
+    const valid = await form.trigger();
+    if (!valid) return;
     if (!values.voiceAiGoal) {
       toast({ title: "Voice Agent Goal is required to enrich.", variant: "destructive" });
       return;
     }
     setEnrichPreview(null);
-    enrichBusiness.mutate({
-      data: {
-        businessName: values.companyName,
-        websiteUrl: values.websiteUrl,
-        industry: values.industry || undefined,
-        agentGoal: values.voiceAiGoal,
-        tone: values.desiredTone || undefined,
-        primaryCta: values.primaryCta || undefined,
-        optionalNotes: values.optionalNotes || undefined,
-      }
-    }, {
-      onSuccess: (res) => {
-        const profile = res.businessProfile;
-        const pkg = res.voiceAgentPackage;
-        // Pre-fill fields from enrichment, but only when empty so we don't overwrite user input
-        const updates: Partial<FormValues> = {};
-        if (!values.industry && profile.industry && profile.industry !== "unknown") updates.industry = profile.industry;
-        if (!values.companyDescription && profile.summary && profile.summary !== "unknown") updates.companyDescription = profile.summary;
-        if (!values.servicesOffered && profile.services?.length) updates.servicesOffered = profile.services.join(", ");
-        if (!values.serviceArea && profile.serviceArea && profile.serviceArea !== "unknown") updates.serviceArea = profile.serviceArea;
-        if (!values.voicePersonaName && pkg.agentName) updates.voicePersonaName = pkg.agentName;
-        if (Object.keys(updates).length > 0) form.reset({ ...values, ...updates });
-        setEnrichPreview({
-          summary: profile.summary ?? undefined,
-          services: profile.services ?? undefined,
-          serviceArea: profile.serviceArea ?? undefined,
-          phone: profile.phone ?? undefined,
-          hours: profile.hours ?? undefined,
-          sources: profile.sourceNotes?.length ?? 0,
-          limited: res.limitedResults,
-        });
-        toast({ title: res.limitedResults ? "Enrichment complete (limited results)" : "Enrichment complete" });
-      },
-      onError: (err: unknown) => {
-        const msg = (err && typeof err === "object" && "message" in err) ? String((err as { message: unknown }).message) : "Enrichment failed";
-        toast({ title: "AI enrichment failed", description: msg, variant: "destructive" });
-      }
-    });
+
+    const runEnrich = (demoId: string) => {
+      enrichDemo.mutate({ id: demoId }, {
+        onSuccess: (updated) => {
+          queryClient.invalidateQueries({ queryKey: getGetDemoQueryKey(demoId) });
+          queryClient.invalidateQueries({ queryKey: getGetDemosQueryKey() });
+          const limited = !((updated as { businessProfile?: { sourceNotes?: unknown[] } })?.businessProfile?.sourceNotes?.length);
+          toast({ title: limited ? "Enrichment complete (limited results)" : "Enrichment complete — opening prompt editor" });
+          setLocation(`/demos/${demoId}`);
+        },
+        onError: (err: unknown) => {
+          const msg = (err && typeof err === "object" && "message" in err) ? String((err as { message: unknown }).message) : "Enrichment failed";
+          toast({ title: "AI enrichment failed", description: msg, variant: "destructive" });
+        }
+      });
+    };
+
+    if (isEdit && id) {
+      // Save current edits, then enrich.
+      updateDemo.mutate({ id, data: values }, {
+        onSuccess: (updated) => runEnrich(updated.id),
+        onError: () => toast({ title: "Failed to save before enriching", variant: "destructive" }),
+      });
+    } else {
+      createDemo.mutate({ data: values }, {
+        onSuccess: (created) => {
+          queryClient.invalidateQueries({ queryKey: getGetDemosQueryKey() });
+          runEnrich(created.id);
+        },
+        onError: () => toast({ title: "Failed to create demo before enriching", variant: "destructive" }),
+      });
+    }
   };
+
+  // Suppress unused vars; the lightweight preview path is no longer used after
+  // enrichment was changed to persist + navigate.
+  void enrichBusiness;
+  void enrichPreview;
+  void setEnrichPreview;
 
   const onSubmit = (values: FormValues) => {
     if (isEdit) {
@@ -288,31 +291,17 @@ export default function DemoForm() {
                   type="button"
                   variant="default"
                   onClick={handleEnrichWithAI}
-                  disabled={!aiConfigured || enrichBusiness.isPending}
+                  disabled={!aiConfigured || enrichDemo.isPending || createDemo.isPending || updateDemo.isPending}
                   data-testid="btn-enrich-ai"
                 >
-                  {enrichBusiness.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                  {enrichDemo.isPending || createDemo.isPending || updateDemo.isPending
+                    ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    : <Sparkles className="mr-2 h-4 w-4" />}
                   Enrich With AI (Web Search)
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  Uses OpenAI web search only — no website scraping. Run this after saving for full prompt generation.
+                  Uses OpenAI web search only — no website scraping. Saves the demo, runs enrichment, and opens the voice-agent prompt editor.
                 </p>
-                {enrichPreview && (
-                  <Alert>
-                    <Sparkles className="h-4 w-4" />
-                    <AlertTitle>{enrichPreview.limited ? "Enriched (limited info)" : "Enrichment preview"}</AlertTitle>
-                    <AlertDescription>
-                      <div className="text-sm space-y-1 mt-2">
-                        {enrichPreview.summary && <div><span className="font-medium">Summary:</span> {enrichPreview.summary}</div>}
-                        {enrichPreview.services && enrichPreview.services.length > 0 && <div><span className="font-medium">Services:</span> {enrichPreview.services.join(", ")}</div>}
-                        {enrichPreview.serviceArea && <div><span className="font-medium">Service area:</span> {enrichPreview.serviceArea}</div>}
-                        {enrichPreview.phone && <div><span className="font-medium">Phone:</span> {enrichPreview.phone}</div>}
-                        {enrichPreview.hours && <div><span className="font-medium">Hours:</span> {enrichPreview.hours}</div>}
-                        <div className="text-muted-foreground">{enrichPreview.sources ?? 0} source(s) cited</div>
-                      </div>
-                    </AlertDescription>
-                  </Alert>
-                )}
               </div>
             </CardContent>
           </Card>

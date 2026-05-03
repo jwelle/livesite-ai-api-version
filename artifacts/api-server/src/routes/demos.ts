@@ -83,6 +83,15 @@ function normalizeUrl(url: string): string {
   return url;
 }
 
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const u = new URL(normalizeUrl(value));
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 // Per-user rate limiter for enrichment / regenerate.
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 5;
@@ -413,6 +422,10 @@ router.post("/enrich-business", blockMutateForImpersonation, async (req, res) =>
   const parsed = EnrichBusinessBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  if (!isValidHttpUrl(parsed.data.websiteUrl)) {
+    res.status(400).json({ error: "Website URL must be a valid http(s) URL." });
     return;
   }
   if (!checkRateLimit(req.user.id)) {

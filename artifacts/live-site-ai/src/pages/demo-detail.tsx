@@ -19,7 +19,8 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowLeft, ExternalLink, Copy, Edit, Trash2, RefreshCw, Eye, Phone, Calendar, Bot, Globe, Loader2, Sparkles, Save, Send, FileJson, FileText, RotateCcw } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ArrowLeft, ExternalLink, Copy, Edit, Trash2, RefreshCw, Eye, Phone, Calendar, Bot, Globe, Loader2, Sparkles, Save, Send, FileJson, FileText, RotateCcw, AlertTriangle } from "lucide-react";
 import { getExportDemoMarkdownUrl, getExportDemoJsonUrl } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -47,6 +48,7 @@ export default function DemoDetail() {
   const { impersonating } = useAuth();
   const [workingPrompt, setWorkingPrompt] = useState<string>("");
   const [dirty, setDirty] = useState(false);
+  const [regenDialogOpen, setRegenDialogOpen] = useState(false);
 
   const { data: demo, isLoading } = useGetDemo(id as string, {
     query: { enabled: !!id, queryKey: getGetDemoQueryKey(id as string) }
@@ -112,33 +114,39 @@ export default function DemoDetail() {
     });
   };
 
+  // Replace the working prompt with the freshly regenerated AI prompt.
+  const regenerateAndReplace = () => {
+    regeneratePrompt.mutate({ id: demo.id }, {
+      onSuccess: (updated) => {
+        const next = (updated && (updated as { aiGeneratedPrompt?: string }).aiGeneratedPrompt) || "";
+        if (next) {
+          updateDemo.mutate({ id: demo.id, data: { currentWorkingPrompt: next, status: "edited" } }, {
+            onSuccess: () => { toast({ title: "Prompt regenerated and replaced" }); invalidate(); },
+            onError: () => { toast({ title: "Regenerated but failed to replace working prompt", variant: "destructive" }); invalidate(); },
+          });
+        } else {
+          toast({ title: "Prompt regenerated" });
+          invalidate();
+        }
+      },
+      onError: () => toast({ title: "Regenerate failed", variant: "destructive" }),
+    });
+  };
+
+  // Generate a new AI prompt and save it as a separate version, leaving the
+  // user's working prompt untouched.
+  const regenerateSeparately = () => {
+    regeneratePrompt.mutate({ id: demo.id }, {
+      onSuccess: () => {
+        toast({ title: "New AI prompt saved as a separate version", description: "Your working prompt was preserved." });
+        invalidate();
+      },
+      onError: () => toast({ title: "Regenerate failed", variant: "destructive" }),
+    });
+  };
+
   const handleRegeneratePrompt = () => {
-    const proceed = () => {
-      regeneratePrompt.mutate({ id: demo.id }, {
-        onSuccess: () => { toast({ title: "Prompt regenerated" }); invalidate(); },
-        onError: () => toast({ title: "Regenerate failed", variant: "destructive" }),
-      });
-    };
-    if (dirty && workingPrompt) {
-      const choice = window.prompt(
-        "You have unsaved edits to your working prompt.\n\n" +
-        "Type 'save' to save your edits first, then regenerate the AI prompt (your edits are preserved as the working prompt; the new AI prompt is saved separately).\n" +
-        "Type 'regenerate' to regenerate without saving (your unsaved edits will be lost).\n" +
-        "Anything else cancels.",
-      );
-      if (!choice) return;
-      const c = choice.trim().toLowerCase();
-      if (c === "save") {
-        updateDemo.mutate({ id: demo.id, data: { currentWorkingPrompt: workingPrompt, status: "edited" } }, {
-          onSuccess: () => { setDirty(false); proceed(); },
-          onError: () => toast({ title: "Save failed", variant: "destructive" }),
-        });
-      } else if (c === "regenerate") {
-        proceed();
-      }
-      return;
-    }
-    proceed();
+    setRegenDialogOpen(true);
   };
 
   const handleSavePrompt = () => {
@@ -206,6 +214,10 @@ export default function DemoDetail() {
 
   const publicUrl = `${window.location.origin}/demo/${demo.slug}`;
   const profile = demo.businessProfile as { businessName?: string; industry?: string; summary?: string; services?: string[]; serviceArea?: string; phone?: string; hours?: string; differentiators?: string[]; customerTypes?: string[]; commonQuestions?: string[]; sourceNotes?: { title?: string; url?: string; note?: string }[]; unknowns?: string[] } | null;
+  const limitedInfo = !!profile && (
+    !profile.sourceNotes || profile.sourceNotes.length === 0 ||
+    ((profile.summary === "unknown" || !profile.summary) && (!profile.services || profile.services.length === 0))
+  );
   const pkg = demo.voiceAgentPackage as { agentName?: string; agentRole?: string; tone?: string; openingScript?: string; qualificationQuestions?: string[]; objectionHandlers?: { objection?: string; response?: string }[]; escalationRules?: string[]; bookingInstructions?: string; complianceBoundaries?: string[] } | null;
 
   return (
@@ -271,6 +283,22 @@ export default function DemoDetail() {
                   <CardDescription>Edit freely. Saving updates your working prompt without overwriting the AI-generated version.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <Alert variant="default" className="border-yellow-500/50">
+                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                    <AlertTitle>Review before going live</AlertTitle>
+                    <AlertDescription>
+                      AI-generated business information should be reviewed before using it in a live voice agent. Do not rely on AI-generated pricing, availability, legal claims, medical claims, financial claims, financial advice, guarantees, licenses, or credentials unless confirmed by the business.
+                    </AlertDescription>
+                  </Alert>
+                  {limitedInfo && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Limited public information</AlertTitle>
+                      <AlertDescription>
+                        Limited public information was found. Please review the generated prompt carefully and add missing details before using it.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <Textarea
                     value={workingPrompt}
                     onChange={(e) => { setWorkingPrompt(e.target.value); setDirty(true); }}
@@ -442,6 +470,39 @@ export default function DemoDetail() {
           </Card>
         </div>
       </div>
+
+      <AlertDialog open={regenDialogOpen} onOpenChange={setRegenDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Regenerate AI prompt?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A new AI prompt will be generated. Choose what to do with your current working prompt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-2">
+            <Button
+              variant="default"
+              data-testid="btn-regen-replace"
+              onClick={() => { setRegenDialogOpen(false); regenerateAndReplace(); }}
+            >
+              Replace current working prompt
+            </Button>
+            <Button
+              variant="outline"
+              data-testid="btn-regen-separate"
+              onClick={() => { setRegenDialogOpen(false); regenerateSeparately(); }}
+            >
+              Save new version separately (keep my edits)
+            </Button>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="btn-regen-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <span style={{ display: "none" }} />
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

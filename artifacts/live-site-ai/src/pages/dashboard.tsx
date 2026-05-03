@@ -162,6 +162,22 @@ export default function Dashboard() {
                               <span>Copy Link</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem
+                              data-testid={`btn-copy-prompt-${demo.id}`}
+                              disabled={!(demo.currentWorkingPrompt || demo.aiGeneratedPrompt)}
+                              onClick={() => {
+                                const prompt = demo.currentWorkingPrompt || demo.aiGeneratedPrompt || "";
+                                if (!prompt) {
+                                  toast({ title: "No prompt yet", description: "Run AI enrichment first.", variant: "destructive" });
+                                  return;
+                                }
+                                navigator.clipboard.writeText(prompt);
+                                toast({ title: "Prompt copied to clipboard" });
+                              }}
+                            >
+                              <Copy className="mr-2 h-4 w-4" />
+                              <span>Copy Prompt</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
                               onClick={() => handleDelete(demo.id)}
                               disabled={!!impersonating}
                               className="text-destructive focus:text-destructive"

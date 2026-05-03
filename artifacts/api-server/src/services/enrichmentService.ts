@@ -1,5 +1,22 @@
 import OpenAI from "openai";
 
+// Lightweight runtime validator for the OpenAI enrichment response.
+// We intentionally avoid a hard schema rejection because LLM JSON sometimes
+// omits or renames optional fields; validateEnrichmentShape returns true when
+// the top-level structure looks usable, false otherwise. The downstream
+// normalizers (normalizeProfile / normalizePackage) safely coerce missing or
+// malformed fields to defaults.
+function validateEnrichmentShape(value: unknown): value is {
+  businessProfile?: Record<string, unknown>;
+  voiceAgentPackage?: Record<string, unknown>;
+} {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  const profileOk = v.businessProfile === undefined || (typeof v.businessProfile === "object" && v.businessProfile !== null);
+  const packageOk = v.voiceAgentPackage === undefined || (typeof v.voiceAgentPackage === "object" && v.voiceAgentPackage !== null);
+  return profileOk && packageOk;
+}
+
 const SYSTEM_INSTRUCTION = `You are an expert AI voice-agent architect for local businesses, sales teams, and marketing agencies.
 
 Your job is to research the business using web search and generate a complete voice-agent prompt package for GoHighLevel or a similar AI voice platform.
@@ -367,21 +384,38 @@ export async function runEnrichment(input: EnrichInput): Promise<EnrichmentResul
   }
   const client = getClient();
 
-  // Use Responses API with the web_search tool. Cast through `any` because the
-  // SDK's tool-type unions vary by version.
-  const response = await (client as unknown as {
+  // Use Responses API with web search. Tool name varies between SDK / API
+  // versions: newer SDKs use "web_search", older ones use "web_search_preview".
+  const responsesClient = (client as unknown as {
     responses: {
       create: (args: Record<string, unknown>) => Promise<{
         output_text?: string;
         output?: unknown;
       }>;
     };
-  }).responses.create({
+  }).responses;
+  const baseArgs = {
     model: process.env.OPENAI_ENRICHMENT_MODEL || "gpt-5-mini",
     instructions: SYSTEM_INSTRUCTION,
     input: buildUserPrompt(input),
-    tools: [{ type: "web_search" }],
-  });
+  };
+  let response;
+  try {
+    response = await responsesClient.create({
+      ...baseArgs,
+      tools: [{ type: "web_search" }],
+    });
+  } catch (err) {
+    const msg = (err as Error).message || "";
+    if (/web_search/i.test(msg)) {
+      response = await responsesClient.create({
+        ...baseArgs,
+        tools: [{ type: "web_search_preview" }],
+      });
+    } else {
+      throw err;
+    }
+  }
 
   const text = (response.output_text || "").trim();
   if (!text) {
@@ -397,7 +431,10 @@ export async function runEnrichment(input: EnrichInput): Promise<EnrichmentResul
     );
   }
 
-  const root = (parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {});
+  if (!validateEnrichmentShape(parsed)) {
+    throw new Error("OpenAI returned an unexpected response shape");
+  }
+  const root = parsed as { businessProfile?: unknown; voiceAgentPackage?: unknown };
   const profile = normalizeProfile(root.businessProfile, input);
   const pkg = normalizePackage(root.voiceAgentPackage, input);
   const aiGeneratedPrompt = buildFinalPrompt(profile, pkg, input);
