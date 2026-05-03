@@ -567,9 +567,9 @@ router.post("/demos/:id/regenerate", blockMutateForImpersonation, async (req, re
     if (mode === "separate") {
       await db.insert(promptVersionsTable).values({
         demoId: demo.id,
-        type: "regenerated_separate",
+        type: "regenerated",
         promptText: result.aiGeneratedPrompt,
-        notes: "Saved as a separate version; demo's AI prompt and working prompt were not changed.",
+        notes: "Mode: separate — saved as a new version; demo's AI prompt and working prompt were not changed.",
       });
       res.json(demo);
       return;
