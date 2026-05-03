@@ -28,13 +28,17 @@ async function getOrCreateSettings(userId: string) {
   return created;
 }
 
+function hasOpenAiKey(): boolean {
+  return Boolean(process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY);
+}
+
 router.get("/settings", async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
   const settings = await getOrCreateSettings(req.user.id);
-  res.json(settings);
+  res.json({ ...settings, hasOpenAiKey: hasOpenAiKey() });
 });
 
 router.patch("/settings", blockDuringImpersonation, async (req, res) => {
@@ -63,6 +67,9 @@ router.patch("/settings", blockDuringImpersonation, async (req, res) => {
     updates.defaultGhlWidgetId = v && v.length > 0 ? v : null;
   }
   if (data.defaultChatPersonaName !== undefined) updates.defaultChatPersonaName = data.defaultChatPersonaName;
+  if (data.enableOpenAiWebsiteIntelligence !== undefined) {
+    updates.enableOpenAiWebsiteIntelligence = data.enableOpenAiWebsiteIntelligence;
+  }
 
   await getOrCreateSettings(req.user.id);
 
@@ -72,7 +79,7 @@ router.patch("/settings", blockDuringImpersonation, async (req, res) => {
     .where(eq(agencySettingsTable.userId, req.user.id))
     .returning();
 
-  res.json(settings);
+  res.json({ ...settings, hasOpenAiKey: hasOpenAiKey() });
 });
 
 export default router;

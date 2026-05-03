@@ -21,6 +21,10 @@ import type {
   AdminDemosList,
   AdminUsersList,
   AgencySettings,
+  AnalyzeWebsiteBody,
+  AnalyzeWebsiteError,
+  AnalyzeWebsiteResponse,
+  ApplyWebsiteIntelligenceBody,
   AuthUserEnvelope,
   BeginBrowserLoginParams,
   CreateDemoBody,
@@ -1047,6 +1051,182 @@ export const useDeleteDemo = <
   TContext
 > => {
   return useMutation(getDeleteDemoMutationOptions(options));
+};
+
+/**
+ * @summary Fetch the demo's website and generate AI prompt suggestions
+ */
+export const getAnalyzeDemoWebsiteUrl = (id: string) => {
+  return `/api/demos/${id}/analyze-website`;
+};
+
+export const analyzeDemoWebsite = async (
+  id: string,
+  analyzeWebsiteBody?: AnalyzeWebsiteBody,
+  options?: RequestInit,
+): Promise<AnalyzeWebsiteResponse> => {
+  return customFetch<AnalyzeWebsiteResponse>(getAnalyzeDemoWebsiteUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(analyzeWebsiteBody),
+  });
+};
+
+export const getAnalyzeDemoWebsiteMutationOptions = <
+  TError = ErrorType<AnalyzeWebsiteError | void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof analyzeDemoWebsite>>,
+    TError,
+    { id: string; data: BodyType<AnalyzeWebsiteBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof analyzeDemoWebsite>>,
+  TError,
+  { id: string; data: BodyType<AnalyzeWebsiteBody> },
+  TContext
+> => {
+  const mutationKey = ["analyzeDemoWebsite"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof analyzeDemoWebsite>>,
+    { id: string; data: BodyType<AnalyzeWebsiteBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return analyzeDemoWebsite(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AnalyzeDemoWebsiteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof analyzeDemoWebsite>>
+>;
+export type AnalyzeDemoWebsiteMutationBody = BodyType<AnalyzeWebsiteBody>;
+export type AnalyzeDemoWebsiteMutationError =
+  ErrorType<AnalyzeWebsiteError | void>;
+
+/**
+ * @summary Fetch the demo's website and generate AI prompt suggestions
+ */
+export const useAnalyzeDemoWebsite = <
+  TError = ErrorType<AnalyzeWebsiteError | void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof analyzeDemoWebsite>>,
+    TError,
+    { id: string; data: BodyType<AnalyzeWebsiteBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof analyzeDemoWebsite>>,
+  TError,
+  { id: string; data: BodyType<AnalyzeWebsiteBody> },
+  TContext
+> => {
+  return useMutation(getAnalyzeDemoWebsiteMutationOptions(options));
+};
+
+/**
+ * @summary Copy generated website-intelligence fields into the demo's editable fields
+ */
+export const getApplyDemoWebsiteIntelligenceUrl = (id: string) => {
+  return `/api/demos/${id}/apply-website-intelligence`;
+};
+
+export const applyDemoWebsiteIntelligence = async (
+  id: string,
+  applyWebsiteIntelligenceBody: ApplyWebsiteIntelligenceBody,
+  options?: RequestInit,
+): Promise<Demo> => {
+  return customFetch<Demo>(getApplyDemoWebsiteIntelligenceUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(applyWebsiteIntelligenceBody),
+  });
+};
+
+export const getApplyDemoWebsiteIntelligenceMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof applyDemoWebsiteIntelligence>>,
+    TError,
+    { id: string; data: BodyType<ApplyWebsiteIntelligenceBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof applyDemoWebsiteIntelligence>>,
+  TError,
+  { id: string; data: BodyType<ApplyWebsiteIntelligenceBody> },
+  TContext
+> => {
+  const mutationKey = ["applyDemoWebsiteIntelligence"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof applyDemoWebsiteIntelligence>>,
+    { id: string; data: BodyType<ApplyWebsiteIntelligenceBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return applyDemoWebsiteIntelligence(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApplyDemoWebsiteIntelligenceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof applyDemoWebsiteIntelligence>>
+>;
+export type ApplyDemoWebsiteIntelligenceMutationBody =
+  BodyType<ApplyWebsiteIntelligenceBody>;
+export type ApplyDemoWebsiteIntelligenceMutationError = ErrorType<void>;
+
+/**
+ * @summary Copy generated website-intelligence fields into the demo's editable fields
+ */
+export const useApplyDemoWebsiteIntelligence = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof applyDemoWebsiteIntelligence>>,
+    TError,
+    { id: string; data: BodyType<ApplyWebsiteIntelligenceBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof applyDemoWebsiteIntelligence>>,
+  TError,
+  { id: string; data: BodyType<ApplyWebsiteIntelligenceBody> },
+  TContext
+> => {
+  return useMutation(getApplyDemoWebsiteIntelligenceMutationOptions(options));
 };
 
 /**

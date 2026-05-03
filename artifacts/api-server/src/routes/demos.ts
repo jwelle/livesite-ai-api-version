@@ -8,10 +8,23 @@ import {
   UpdateDemoParams,
   DeleteDemoParams,
   RegenerateDemoSlugParams,
+  AnalyzeDemoWebsiteParams,
+  AnalyzeDemoWebsiteBody,
+  ApplyDemoWebsiteIntelligenceParams,
+  ApplyDemoWebsiteIntelligenceBody,
 } from "@workspace/api-zod";
-import { generateVoiceAIPrompt } from "../services/aiPromptService";
 import { seedIfEmpty } from "../services/seed";
 import { blockDuringImpersonation } from "../middlewares/authMiddleware";
+import {
+  fetchWebsiteHtml,
+  extractWebsiteContent,
+  WebsiteFetchError,
+} from "../services/websiteFetchService";
+import { analyzeWebsiteBasic } from "../services/basicWebsiteAnalysisService";
+import {
+  analyzeWebsiteWithOpenAI,
+  isOpenAiConfigured,
+} from "../services/openAiWebsiteAnalysisService";
 
 const router = Router();
 
@@ -257,6 +270,197 @@ router.delete("/demos/:id", blockMutateForImpersonation, async (req, res) => {
     return;
   }
   res.json({ success: true });
+});
+
+router.post("/demos/:id/analyze-website", blockMutateForImpersonation, async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized", code: "UNAUTHORIZED" });
+    return;
+  }
+  const params = AnalyzeDemoWebsiteParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid ID", code: "INVALID_URL" });
+    return;
+  }
+  // Body is currently empty/optional — OpenAI use is controlled exclusively by
+  // the agency's persisted setting + server-side key presence.
+  AnalyzeDemoWebsiteBody.safeParse(req.body ?? {});
+
+  const userId = req.user.id;
+  const [demo] = await db
+    .select()
+    .from(demosTable)
+    .where(and(eq(demosTable.id, params.data.id), eq(demosTable.userId, userId)));
+  if (!demo) {
+    res.status(404).json({ error: "Demo not found", code: "INVALID_URL" });
+    return;
+  }
+
+  const [settings] = await db
+    .select()
+    .from(agencySettingsTable)
+    .where(eq(agencySettingsTable.userId, userId));
+
+  const targetUrl = demo.websiteUrl;
+  if (!targetUrl) {
+    res.status(400).json({ error: "Demo has no websiteUrl to analyze.", code: "INVALID_URL" });
+    return;
+  }
+
+  let fetched: { url: string; html: string };
+  try {
+    fetched = await fetchWebsiteHtml(targetUrl);
+  } catch (err) {
+    if (err instanceof WebsiteFetchError) {
+      await db
+        .update(demosTable)
+        .set({
+          websiteAnalysisStatus: "failed",
+          websiteAnalysisError: err.message,
+          websiteAnalyzedAt: new Date(),
+        })
+        .where(eq(demosTable.id, demo.id));
+      res.status(400).json({ error: err.message, code: err.code });
+      return;
+    }
+    res.status(400).json({
+      error: "Unexpected error fetching the website.",
+      code: "FETCH_FAILED",
+    });
+    return;
+  }
+
+  const content = extractWebsiteContent(fetched.html);
+  const analysisInput = {
+    url: fetched.url,
+    companyName: demo.companyName,
+    industry: demo.industry,
+    title: content.title,
+    metaDescription: content.metaDescription,
+    headings: content.headings,
+    text: content.text,
+  };
+
+  const wantOpenAi = Boolean(settings?.enableOpenAiWebsiteIntelligence);
+
+  const warnings: string[] = [];
+  let source: "openai" | "basic" = "basic";
+  let analysis;
+
+  if (wantOpenAi && isOpenAiConfigured()) {
+    try {
+      analysis = await analyzeWebsiteWithOpenAI(analysisInput);
+      source = "openai";
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "OpenAI analysis failed";
+      warnings.push(`OpenAI analysis unavailable — used the basic parser instead. (${msg.slice(0, 200)})`);
+      analysis = analyzeWebsiteBasic(analysisInput);
+      source = "basic";
+    }
+  } else {
+    if (wantOpenAi && !isOpenAiConfigured()) {
+      warnings.push("OpenAI is not configured on the server — used the basic parser instead.");
+    }
+    analysis = analyzeWebsiteBasic(analysisInput);
+    source = "basic";
+  }
+
+  const status = analysis.missing_information.length > 0 ? "partial" : "ok";
+
+  const [updated] = await db
+    .update(demosTable)
+    .set({
+      websiteTitle: content.title || null,
+      websiteMetaDescription: content.metaDescription || null,
+      websiteHeadings: content.headings,
+      websiteRawTextExcerpt: content.text || null,
+      extractedBusinessSummary: analysis.company_summary || null,
+      extractedServices: analysis.likely_services,
+      extractedServiceArea: analysis.service_area || null,
+      extractedFaqs: analysis.suggested_faqs,
+      extractedTone: analysis.business_tone || null,
+      extractedTargetCustomers: analysis.target_customers || null,
+      suggestedChatPersona: analysis.suggested_chat_persona || null,
+      suggestedVoicePersona: analysis.suggested_voice_persona || null,
+      suggestedLeadQuestions: analysis.suggested_lead_questions,
+      generatedChatContext: analysis.generated_chat_context,
+      generatedVoicePrompt: analysis.generated_voice_prompt,
+      missingInformation: analysis.missing_information,
+      websiteAnalysisStatus: status,
+      websiteAnalysisError: null,
+      websiteAnalyzedAt: new Date(),
+      websiteAnalysisSource: source,
+    })
+    .where(eq(demosTable.id, demo.id))
+    .returning();
+
+  res.json({ demo: updated, source, warnings });
+});
+
+router.post("/demos/:id/apply-website-intelligence", blockMutateForImpersonation, async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const params = ApplyDemoWebsiteIntelligenceParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid ID" });
+    return;
+  }
+  const body = ApplyDemoWebsiteIntelligenceBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const [demo] = await db
+    .select()
+    .from(demosTable)
+    .where(and(eq(demosTable.id, params.data.id), eq(demosTable.userId, req.user.id)));
+  if (!demo) {
+    res.status(404).json({ error: "Demo not found" });
+    return;
+  }
+
+  const services = Array.isArray(demo.extractedServices)
+    ? (demo.extractedServices as unknown[]).map(String)
+    : [];
+  const updates: Record<string, unknown> = {};
+  for (const field of body.data.fields) {
+    switch (field) {
+      case "companyDescription":
+        if (demo.extractedBusinessSummary) updates.companyDescription = demo.extractedBusinessSummary;
+        break;
+      case "servicesOffered":
+        if (services.length > 0) updates.servicesOffered = services.join(", ");
+        break;
+      case "serviceArea":
+        if (demo.extractedServiceArea && demo.extractedServiceArea !== "Unknown") {
+          updates.serviceArea = demo.extractedServiceArea;
+        }
+        break;
+      case "chatPersonaName":
+        if (demo.suggestedChatPersona) updates.chatPersonaName = demo.suggestedChatPersona;
+        break;
+      case "voicePersonaName":
+        if (demo.suggestedVoicePersona) updates.voicePersonaName = demo.suggestedVoicePersona;
+        break;
+      case "voiceAiGoal":
+        if (demo.generatedVoicePrompt) updates.voiceAiGoal = demo.generatedVoicePrompt;
+        break;
+    }
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.json(demo);
+    return;
+  }
+
+  const [updated] = await db
+    .update(demosTable)
+    .set(updates)
+    .where(eq(demosTable.id, demo.id))
+    .returning();
+  res.json(updated);
 });
 
 router.post("/demos/:id/regenerate-slug", blockMutateForImpersonation, async (req, res) => {

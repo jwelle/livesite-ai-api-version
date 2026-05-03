@@ -134,6 +134,46 @@ export const GetDemosResponseItem = zod.object({
   serviceArea: zod.string().nullish(),
   customDemoMessage: zod.string().nullish(),
   internalNotes: zod.string().nullish(),
+  websiteTitle: zod.string().nullish(),
+  websiteMetaDescription: zod.string().nullish(),
+  websiteHeadings: zod.union([zod.array(zod.string()), zod.null()]).optional(),
+  websiteRawTextExcerpt: zod.string().nullish(),
+  extractedBusinessSummary: zod.string().nullish(),
+  extractedServices: zod
+    .union([zod.array(zod.string()), zod.null()])
+    .optional(),
+  extractedServiceArea: zod.string().nullish(),
+  extractedFaqs: zod
+    .union([
+      zod.array(
+        zod.object({
+          question: zod.string(),
+          answer_guidance: zod.string(),
+        }),
+      ),
+      zod.null(),
+    ])
+    .optional(),
+  extractedTone: zod.string().nullish(),
+  extractedTargetCustomers: zod.string().nullish(),
+  suggestedChatPersona: zod.string().nullish(),
+  suggestedVoicePersona: zod.string().nullish(),
+  suggestedLeadQuestions: zod
+    .union([zod.array(zod.string()), zod.null()])
+    .optional(),
+  generatedChatContext: zod.string().nullish(),
+  generatedVoicePrompt: zod.string().nullish(),
+  missingInformation: zod
+    .union([zod.array(zod.string()), zod.null()])
+    .optional(),
+  websiteAnalysisStatus: zod
+    .enum(["not_started", "ok", "partial", "failed"])
+    .optional(),
+  websiteAnalysisError: zod.string().nullish(),
+  websiteAnalyzedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+  websiteAnalysisSource: zod
+    .union([zod.literal("openai"), zod.literal("basic"), zod.literal(null)])
+    .nullish(),
   status: zod.enum(["active", "inactive", "draft"]),
   viewCount: zod.number(),
   callClickCount: zod.number(),
@@ -196,6 +236,46 @@ export const GetDemoResponse = zod.object({
   serviceArea: zod.string().nullish(),
   customDemoMessage: zod.string().nullish(),
   internalNotes: zod.string().nullish(),
+  websiteTitle: zod.string().nullish(),
+  websiteMetaDescription: zod.string().nullish(),
+  websiteHeadings: zod.union([zod.array(zod.string()), zod.null()]).optional(),
+  websiteRawTextExcerpt: zod.string().nullish(),
+  extractedBusinessSummary: zod.string().nullish(),
+  extractedServices: zod
+    .union([zod.array(zod.string()), zod.null()])
+    .optional(),
+  extractedServiceArea: zod.string().nullish(),
+  extractedFaqs: zod
+    .union([
+      zod.array(
+        zod.object({
+          question: zod.string(),
+          answer_guidance: zod.string(),
+        }),
+      ),
+      zod.null(),
+    ])
+    .optional(),
+  extractedTone: zod.string().nullish(),
+  extractedTargetCustomers: zod.string().nullish(),
+  suggestedChatPersona: zod.string().nullish(),
+  suggestedVoicePersona: zod.string().nullish(),
+  suggestedLeadQuestions: zod
+    .union([zod.array(zod.string()), zod.null()])
+    .optional(),
+  generatedChatContext: zod.string().nullish(),
+  generatedVoicePrompt: zod.string().nullish(),
+  missingInformation: zod
+    .union([zod.array(zod.string()), zod.null()])
+    .optional(),
+  websiteAnalysisStatus: zod
+    .enum(["not_started", "ok", "partial", "failed"])
+    .optional(),
+  websiteAnalysisError: zod.string().nullish(),
+  websiteAnalyzedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+  websiteAnalysisSource: zod
+    .union([zod.literal("openai"), zod.literal("basic"), zod.literal(null)])
+    .nullish(),
   status: zod.enum(["active", "inactive", "draft"]),
   viewCount: zod.number(),
   callClickCount: zod.number(),
@@ -260,6 +340,46 @@ export const UpdateDemoResponse = zod.object({
   serviceArea: zod.string().nullish(),
   customDemoMessage: zod.string().nullish(),
   internalNotes: zod.string().nullish(),
+  websiteTitle: zod.string().nullish(),
+  websiteMetaDescription: zod.string().nullish(),
+  websiteHeadings: zod.union([zod.array(zod.string()), zod.null()]).optional(),
+  websiteRawTextExcerpt: zod.string().nullish(),
+  extractedBusinessSummary: zod.string().nullish(),
+  extractedServices: zod
+    .union([zod.array(zod.string()), zod.null()])
+    .optional(),
+  extractedServiceArea: zod.string().nullish(),
+  extractedFaqs: zod
+    .union([
+      zod.array(
+        zod.object({
+          question: zod.string(),
+          answer_guidance: zod.string(),
+        }),
+      ),
+      zod.null(),
+    ])
+    .optional(),
+  extractedTone: zod.string().nullish(),
+  extractedTargetCustomers: zod.string().nullish(),
+  suggestedChatPersona: zod.string().nullish(),
+  suggestedVoicePersona: zod.string().nullish(),
+  suggestedLeadQuestions: zod
+    .union([zod.array(zod.string()), zod.null()])
+    .optional(),
+  generatedChatContext: zod.string().nullish(),
+  generatedVoicePrompt: zod.string().nullish(),
+  missingInformation: zod
+    .union([zod.array(zod.string()), zod.null()])
+    .optional(),
+  websiteAnalysisStatus: zod
+    .enum(["not_started", "ok", "partial", "failed"])
+    .optional(),
+  websiteAnalysisError: zod.string().nullish(),
+  websiteAnalyzedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+  websiteAnalysisSource: zod
+    .union([zod.literal("openai"), zod.literal("basic"), zod.literal(null)])
+    .nullish(),
   status: zod.enum(["active", "inactive", "draft"]),
   viewCount: zod.number(),
   callClickCount: zod.number(),
@@ -277,6 +397,186 @@ export const DeleteDemoParams = zod.object({
 
 export const DeleteDemoResponse = zod.object({
   success: zod.boolean(),
+});
+
+/**
+ * @summary Fetch the demo's website and generate AI prompt suggestions
+ */
+export const AnalyzeDemoWebsiteParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const AnalyzeDemoWebsiteBody = zod
+  .object({})
+  .passthrough()
+  .describe(
+    "Empty body. OpenAI use is controlled by the agency's persisted enableOpenAiWebsiteIntelligence setting plus server-side key presence; the client cannot override it.",
+  );
+
+export const AnalyzeDemoWebsiteResponse = zod.object({
+  demo: zod.object({
+    id: zod.string(),
+    userId: zod.string(),
+    companyName: zod.string(),
+    slug: zod.string(),
+    websiteUrl: zod.string(),
+    industry: zod.string().nullish(),
+    contactName: zod.string().nullish(),
+    contactEmail: zod.string().nullish(),
+    contactPhone: zod.string().nullish(),
+    voiceAiPhoneNumber: zod.string().nullish(),
+    voicePersonaName: zod.string().nullish(),
+    voiceAiGoal: zod.string().nullish(),
+    ctaCalendarLink: zod.string().nullish(),
+    chatWidgetId: zod.string().nullish(),
+    chatPersonaName: zod.string().nullish(),
+    companyDescription: zod.string().nullish(),
+    servicesOffered: zod.string().nullish(),
+    serviceArea: zod.string().nullish(),
+    customDemoMessage: zod.string().nullish(),
+    internalNotes: zod.string().nullish(),
+    websiteTitle: zod.string().nullish(),
+    websiteMetaDescription: zod.string().nullish(),
+    websiteHeadings: zod
+      .union([zod.array(zod.string()), zod.null()])
+      .optional(),
+    websiteRawTextExcerpt: zod.string().nullish(),
+    extractedBusinessSummary: zod.string().nullish(),
+    extractedServices: zod
+      .union([zod.array(zod.string()), zod.null()])
+      .optional(),
+    extractedServiceArea: zod.string().nullish(),
+    extractedFaqs: zod
+      .union([
+        zod.array(
+          zod.object({
+            question: zod.string(),
+            answer_guidance: zod.string(),
+          }),
+        ),
+        zod.null(),
+      ])
+      .optional(),
+    extractedTone: zod.string().nullish(),
+    extractedTargetCustomers: zod.string().nullish(),
+    suggestedChatPersona: zod.string().nullish(),
+    suggestedVoicePersona: zod.string().nullish(),
+    suggestedLeadQuestions: zod
+      .union([zod.array(zod.string()), zod.null()])
+      .optional(),
+    generatedChatContext: zod.string().nullish(),
+    generatedVoicePrompt: zod.string().nullish(),
+    missingInformation: zod
+      .union([zod.array(zod.string()), zod.null()])
+      .optional(),
+    websiteAnalysisStatus: zod
+      .enum(["not_started", "ok", "partial", "failed"])
+      .optional(),
+    websiteAnalysisError: zod.string().nullish(),
+    websiteAnalyzedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+    websiteAnalysisSource: zod
+      .union([zod.literal("openai"), zod.literal("basic"), zod.literal(null)])
+      .nullish(),
+    status: zod.enum(["active", "inactive", "draft"]),
+    viewCount: zod.number(),
+    callClickCount: zod.number(),
+    calendarClickCount: zod.number(),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  source: zod.enum(["openai", "basic"]),
+  warnings: zod.array(zod.string()),
+});
+
+/**
+ * @summary Copy generated website-intelligence fields into the demo's editable fields
+ */
+export const ApplyDemoWebsiteIntelligenceParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ApplyDemoWebsiteIntelligenceBody = zod.object({
+  fields: zod
+    .array(
+      zod.enum([
+        "companyDescription",
+        "servicesOffered",
+        "serviceArea",
+        "chatPersonaName",
+        "voicePersonaName",
+        "voiceAiGoal",
+      ]),
+    )
+    .min(1),
+});
+
+export const ApplyDemoWebsiteIntelligenceResponse = zod.object({
+  id: zod.string(),
+  userId: zod.string(),
+  companyName: zod.string(),
+  slug: zod.string(),
+  websiteUrl: zod.string(),
+  industry: zod.string().nullish(),
+  contactName: zod.string().nullish(),
+  contactEmail: zod.string().nullish(),
+  contactPhone: zod.string().nullish(),
+  voiceAiPhoneNumber: zod.string().nullish(),
+  voicePersonaName: zod.string().nullish(),
+  voiceAiGoal: zod.string().nullish(),
+  ctaCalendarLink: zod.string().nullish(),
+  chatWidgetId: zod.string().nullish(),
+  chatPersonaName: zod.string().nullish(),
+  companyDescription: zod.string().nullish(),
+  servicesOffered: zod.string().nullish(),
+  serviceArea: zod.string().nullish(),
+  customDemoMessage: zod.string().nullish(),
+  internalNotes: zod.string().nullish(),
+  websiteTitle: zod.string().nullish(),
+  websiteMetaDescription: zod.string().nullish(),
+  websiteHeadings: zod.union([zod.array(zod.string()), zod.null()]).optional(),
+  websiteRawTextExcerpt: zod.string().nullish(),
+  extractedBusinessSummary: zod.string().nullish(),
+  extractedServices: zod
+    .union([zod.array(zod.string()), zod.null()])
+    .optional(),
+  extractedServiceArea: zod.string().nullish(),
+  extractedFaqs: zod
+    .union([
+      zod.array(
+        zod.object({
+          question: zod.string(),
+          answer_guidance: zod.string(),
+        }),
+      ),
+      zod.null(),
+    ])
+    .optional(),
+  extractedTone: zod.string().nullish(),
+  extractedTargetCustomers: zod.string().nullish(),
+  suggestedChatPersona: zod.string().nullish(),
+  suggestedVoicePersona: zod.string().nullish(),
+  suggestedLeadQuestions: zod
+    .union([zod.array(zod.string()), zod.null()])
+    .optional(),
+  generatedChatContext: zod.string().nullish(),
+  generatedVoicePrompt: zod.string().nullish(),
+  missingInformation: zod
+    .union([zod.array(zod.string()), zod.null()])
+    .optional(),
+  websiteAnalysisStatus: zod
+    .enum(["not_started", "ok", "partial", "failed"])
+    .optional(),
+  websiteAnalysisError: zod.string().nullish(),
+  websiteAnalyzedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+  websiteAnalysisSource: zod
+    .union([zod.literal("openai"), zod.literal("basic"), zod.literal(null)])
+    .nullish(),
+  status: zod.enum(["active", "inactive", "draft"]),
+  viewCount: zod.number(),
+  callClickCount: zod.number(),
+  calendarClickCount: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
 });
 
 /**
@@ -307,6 +607,46 @@ export const RegenerateDemoSlugResponse = zod.object({
   serviceArea: zod.string().nullish(),
   customDemoMessage: zod.string().nullish(),
   internalNotes: zod.string().nullish(),
+  websiteTitle: zod.string().nullish(),
+  websiteMetaDescription: zod.string().nullish(),
+  websiteHeadings: zod.union([zod.array(zod.string()), zod.null()]).optional(),
+  websiteRawTextExcerpt: zod.string().nullish(),
+  extractedBusinessSummary: zod.string().nullish(),
+  extractedServices: zod
+    .union([zod.array(zod.string()), zod.null()])
+    .optional(),
+  extractedServiceArea: zod.string().nullish(),
+  extractedFaqs: zod
+    .union([
+      zod.array(
+        zod.object({
+          question: zod.string(),
+          answer_guidance: zod.string(),
+        }),
+      ),
+      zod.null(),
+    ])
+    .optional(),
+  extractedTone: zod.string().nullish(),
+  extractedTargetCustomers: zod.string().nullish(),
+  suggestedChatPersona: zod.string().nullish(),
+  suggestedVoicePersona: zod.string().nullish(),
+  suggestedLeadQuestions: zod
+    .union([zod.array(zod.string()), zod.null()])
+    .optional(),
+  generatedChatContext: zod.string().nullish(),
+  generatedVoicePrompt: zod.string().nullish(),
+  missingInformation: zod
+    .union([zod.array(zod.string()), zod.null()])
+    .optional(),
+  websiteAnalysisStatus: zod
+    .enum(["not_started", "ok", "partial", "failed"])
+    .optional(),
+  websiteAnalysisError: zod.string().nullish(),
+  websiteAnalyzedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+  websiteAnalysisSource: zod
+    .union([zod.literal("openai"), zod.literal("basic"), zod.literal(null)])
+    .nullish(),
   status: zod.enum(["active", "inactive", "draft"]),
   viewCount: zod.number(),
   callClickCount: zod.number(),
@@ -342,6 +682,8 @@ export const GetSettingsResponse = zod.object({
   defaultCalendarLink: zod.string().nullish(),
   defaultGhlWidgetId: zod.string().nullish(),
   defaultChatPersonaName: zod.string().nullish(),
+  enableOpenAiWebsiteIntelligence: zod.boolean(),
+  hasOpenAiKey: zod.boolean(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -360,6 +702,7 @@ export const UpdateSettingsBody = zod.object({
   defaultCalendarLink: zod.string().nullish(),
   defaultGhlWidgetId: zod.string().nullish(),
   defaultChatPersonaName: zod.string().nullish(),
+  enableOpenAiWebsiteIntelligence: zod.boolean().optional(),
 });
 
 export const UpdateSettingsResponse = zod.object({
@@ -375,6 +718,8 @@ export const UpdateSettingsResponse = zod.object({
   defaultCalendarLink: zod.string().nullish(),
   defaultGhlWidgetId: zod.string().nullish(),
   defaultChatPersonaName: zod.string().nullish(),
+  enableOpenAiWebsiteIntelligence: zod.boolean(),
+  hasOpenAiKey: zod.boolean(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
