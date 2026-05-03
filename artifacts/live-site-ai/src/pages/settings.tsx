@@ -12,7 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Loader2, Save, Info } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Switch } from "@/components/ui/switch";
 
 const settingsSchema = z.object({
   agencyName: z.string().optional(),
@@ -25,7 +24,6 @@ const settingsSchema = z.object({
   defaultCalendarLink: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   defaultGhlWidgetId: z.string().optional(),
   defaultChatPersonaName: z.string().optional(),
-  enableOpenAiWebsiteIntelligence: z.boolean().optional(),
 });
 
 type SettingsValues = z.infer<typeof settingsSchema>;
@@ -49,7 +47,6 @@ export default function Settings() {
       defaultCalendarLink: "",
       defaultGhlWidgetId: "",
       defaultChatPersonaName: "",
-      enableOpenAiWebsiteIntelligence: false,
     },
   });
 
@@ -66,7 +63,6 @@ export default function Settings() {
         defaultCalendarLink: settings.defaultCalendarLink || "",
         defaultGhlWidgetId: settings.defaultGhlWidgetId || "",
         defaultChatPersonaName: settings.defaultChatPersonaName || "",
-        enableOpenAiWebsiteIntelligence: Boolean(settings.enableOpenAiWebsiteIntelligence),
       });
     }
   }, [settings, form]);
@@ -221,40 +217,6 @@ export default function Settings() {
                       <Input placeholder="https://calendar.com/book" {...field} data-testid="input-default-calendar" />
                     </FormControl>
                     <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Website Intelligence</CardTitle>
-              <CardDescription>
-                When enabled, the "Analyze Website" button on a demo will call OpenAI to generate a richer Voice AI prompt and chat context. When disabled, a free built-in parser is used.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="enableOpenAiWebsiteIntelligence"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5 mr-4">
-                      <FormLabel>Use OpenAI for analysis</FormLabel>
-                      <FormDescription>
-                        {settings?.hasOpenAiKey
-                          ? "An OpenAI API key is configured on the server."
-                          : "No OpenAI key is configured on the server — the basic parser will be used regardless of this setting."}
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={!!field.value}
-                        onCheckedChange={field.onChange}
-                        data-testid="switch-openai-intel"
-                      />
-                    </FormControl>
                   </FormItem>
                 )}
               />
