@@ -159,7 +159,7 @@ export default function DemoDetail() {
 
   const handleApprove = () => {
     updateDemo.mutate({ id: demo.id, data: { finalSavedPrompt: workingPrompt, currentWorkingPrompt: workingPrompt, status: "approved" } }, {
-      onSuccess: () => { toast({ title: "Marked as Final" }); invalidate(); setDirty(false); },
+      onSuccess: () => { toast({ title: "Final prompt saved" }); invalidate(); setDirty(false); },
       onError: () => toast({ title: "Approve failed", variant: "destructive" }),
     });
   };
@@ -312,10 +312,10 @@ export default function DemoDetail() {
                   <div className="flex flex-wrap gap-2">
                     <Button onClick={handleSavePrompt} disabled={!dirty || updateDemo.isPending || !!impersonating} data-testid="btn-save-prompt">
                       {updateDemo.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                      Save Working Prompt
+                      Save Draft
                     </Button>
                     <Button variant="outline" onClick={handleApprove} disabled={!workingPrompt || updateDemo.isPending || !!impersonating} data-testid="btn-approve-prompt">
-                      Mark as Final
+                      Save Final Prompt
                     </Button>
                     <Button variant="outline" onClick={handleCopyPrompt} disabled={!workingPrompt} data-testid="btn-copy-prompt">
                       <Copy className="mr-2 h-4 w-4" /> Copy Prompt
@@ -399,7 +399,7 @@ export default function DemoDetail() {
                           size="sm"
                           variant="outline"
                           data-testid={`btn-restore-${v.id}`}
-                          onClick={() => { setWorkingPrompt(v.promptText); setDirty(true); toast({ title: "Loaded into editor — click Save Working Prompt to keep it." }); }}
+                          onClick={() => { setWorkingPrompt(v.promptText); setDirty(true); toast({ title: "Loaded into editor — click Save Draft to keep it." }); }}
                         >
                           Load into editor
                         </Button>
