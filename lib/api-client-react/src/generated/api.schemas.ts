@@ -566,6 +566,28 @@ export type HandleBrowserLoginCallbackParams = {
   iss?: string;
 };
 
+/**
+ * "replace" updates aiGeneratedPrompt, currentWorkingPrompt, and the structured profile/package on the demo.
+"separate" runs a fresh OpenAI generation but only records a new prompt_versions row, leaving the demo's
+current AI prompt and working prompt untouched. Defaults to "replace".
+
+ */
+export type RegenerateDemoPromptBodyMode =
+  (typeof RegenerateDemoPromptBodyMode)[keyof typeof RegenerateDemoPromptBodyMode];
+
+export const RegenerateDemoPromptBodyMode = {
+  replace: "replace",
+  separate: "separate",
+} as const;
+
+export type RegenerateDemoPromptBody = {
+  /** "replace" updates aiGeneratedPrompt, currentWorkingPrompt, and the structured profile/package on the demo.
+"separate" runs a fresh OpenAI generation but only records a new prompt_versions row, leaving the demo's
+current AI prompt and working prompt untouched. Defaults to "replace".
+ */
+  mode?: RegenerateDemoPromptBodyMode;
+};
+
 export type ExportDemoJson200 = { [key: string]: unknown };
 
 export type GetAdminUsersParams = {

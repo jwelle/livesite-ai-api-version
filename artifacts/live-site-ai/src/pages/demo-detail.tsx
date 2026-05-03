@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -118,27 +120,16 @@ export default function DemoDetail() {
 
   // Replace the working prompt with the freshly regenerated AI prompt.
   const regenerateAndReplace = () => {
-    regeneratePrompt.mutate({ id: demo.id }, {
-      onSuccess: (updated) => {
-        const next = (updated && (updated as { aiGeneratedPrompt?: string }).aiGeneratedPrompt) || "";
-        if (next) {
-          updateDemo.mutate({ id: demo.id, data: { currentWorkingPrompt: next, status: "edited" } }, {
-            onSuccess: () => { toast({ title: "Prompt regenerated and replaced" }); invalidate(); },
-            onError: () => { toast({ title: "Regenerated but failed to replace working prompt", variant: "destructive" }); invalidate(); },
-          });
-        } else {
-          toast({ title: "Prompt regenerated" });
-          invalidate();
-        }
-      },
+    regeneratePrompt.mutate({ id: demo.id, data: { mode: "replace" } }, {
+      onSuccess: () => { toast({ title: "Prompt regenerated and replaced" }); invalidate(); },
       onError: () => toast({ title: "Regenerate failed", variant: "destructive" }),
     });
   };
 
   // Generate a new AI prompt and save it as a separate version, leaving the
-  // user's working prompt untouched.
+  // user's working prompt and current AI prompt untouched.
   const regenerateSeparately = () => {
-    regeneratePrompt.mutate({ id: demo.id }, {
+    regeneratePrompt.mutate({ id: demo.id, data: { mode: "separate" } }, {
       onSuccess: () => {
         toast({ title: "New AI prompt saved as a separate version", description: "Your working prompt was preserved." });
         invalidate();
@@ -340,70 +331,23 @@ export default function DemoDetail() {
             </TabsContent>
 
             <TabsContent value="profile" className="mt-4">
-              <Card>
-                <CardHeader><CardTitle>Business Profile</CardTitle><CardDescription>Grounded in public web search.</CardDescription></CardHeader>
-                <CardContent className="space-y-4 text-sm">
-                  {!profile && <p className="text-muted-foreground">No profile yet. Run AI enrichment.</p>}
-                  {profile && (
-                    <>
-                      <Field label="Industry" value={profile.industry} />
-                      <Field label="Summary" value={profile.summary} />
-                      <ListField label="Services" items={profile.services} />
-                      <Field label="Service Area" value={profile.serviceArea} />
-                      <Field label="Phone" value={profile.phone} />
-                      <Field label="Hours" value={profile.hours} />
-                      <ListField label="Differentiators" items={profile.differentiators} />
-                      <ListField label="Customer Types" items={profile.customerTypes} />
-                      <ListField label="Common Questions" items={profile.commonQuestions} />
-                      <ListField label="Unknowns" items={profile.unknowns} />
-                      {profile.sourceNotes && profile.sourceNotes.length > 0 && (
-                        <div>
-                          <div className="text-xs font-semibold uppercase text-muted-foreground mb-1">Sources</div>
-                          <ul className="space-y-1">
-                            {profile.sourceNotes.map((s, i) => (
-                              <li key={i}>
-                                {s.url ? <a href={s.url} target="_blank" rel="noreferrer" className="text-primary underline">{s.title || s.url}</a> : <span>{s.title}</span>}
-                                {s.note ? <span className="text-muted-foreground"> — {s.note}</span> : null}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+              <ProfileEditor
+                key={demo.id + "-profile"}
+                demoId={demo.id}
+                profile={profile}
+                impersonating={!!impersonating}
+                onSaved={invalidate}
+              />
             </TabsContent>
 
             <TabsContent value="package" className="mt-4">
-              <Card>
-                <CardHeader><CardTitle>Voice Agent Package</CardTitle></CardHeader>
-                <CardContent className="space-y-4 text-sm">
-                  {!pkg && <p className="text-muted-foreground">No package yet. Run AI enrichment.</p>}
-                  {pkg && (
-                    <>
-                      <Field label="Agent Name" value={pkg.agentName} />
-                      <Field label="Agent Role" value={pkg.agentRole} />
-                      <Field label="Tone" value={pkg.tone} />
-                      <Field label="Opening Script" value={pkg.openingScript} />
-                      <ListField label="Qualification Questions" items={pkg.qualificationQuestions} />
-                      <ListField label="Escalation Rules" items={pkg.escalationRules} />
-                      <ListField label="Compliance Boundaries" items={pkg.complianceBoundaries} />
-                      <Field label="Booking Instructions" value={pkg.bookingInstructions} />
-                      {pkg.objectionHandlers && pkg.objectionHandlers.length > 0 && (
-                        <div>
-                          <div className="text-xs font-semibold uppercase text-muted-foreground mb-1">Objection Handlers</div>
-                          <ul className="space-y-2">
-                            {pkg.objectionHandlers.map((o, i) => (
-                              <li key={i}><span className="font-medium">{o.objection}</span> → {o.response}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+              <PackageEditor
+                key={demo.id + "-package"}
+                demoId={demo.id}
+                pkg={pkg}
+                impersonating={!!impersonating}
+                onSaved={invalidate}
+              />
             </TabsContent>
 
             <TabsContent value="config" className="mt-4">
@@ -551,29 +495,230 @@ export default function DemoDetail() {
   );
 }
 
-function Field({ label, value }: { label: string; value?: string | null }) {
-  if (!value) return null;
-  return (
-    <div>
-      <div className="text-xs font-semibold uppercase text-muted-foreground mb-1">{label}</div>
-      <div className="whitespace-pre-wrap">{value}</div>
-    </div>
-  );
-}
-function ListField({ label, items }: { label: string; items?: string[] | null }) {
-  if (!items || items.length === 0) return null;
-  return (
-    <div>
-      <div className="text-xs font-semibold uppercase text-muted-foreground mb-1">{label}</div>
-      <ul className="list-disc pl-5 space-y-0.5">{items.map((it, i) => <li key={i}>{it}</li>)}</ul>
-    </div>
-  );
-}
 function Info({ label, value, mono, className }: { label: string; value?: string | null; mono?: boolean; className?: string }) {
   return (
     <div className={className}>
       <div className="text-sm text-muted-foreground mb-1">{label}</div>
       <div className={`font-medium ${mono ? "font-mono text-sm" : ""}`}>{value || "—"}</div>
     </div>
+  );
+}
+
+type ProfileShape = {
+  businessName?: string;
+  industry?: string;
+  summary?: string;
+  services?: string[];
+  serviceArea?: string;
+  phone?: string;
+  hours?: string;
+  differentiators?: string[];
+  customerTypes?: string[];
+  commonQuestions?: string[];
+  sourceNotes?: { title?: string; url?: string; note?: string }[];
+  unknowns?: string[];
+};
+type PackageShape = {
+  agentName?: string;
+  agentRole?: string;
+  tone?: string;
+  conversationGoal?: string;
+  openingScript?: string;
+  qualificationQuestions?: string[];
+  objectionHandlers?: { objection?: string; response?: string }[];
+  escalationRules?: string[];
+  bookingInstructions?: string;
+  complianceBoundaries?: string[];
+};
+
+const linesToArr = (s: string) => s.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+const arrToLines = (a?: string[]) => (a && a.length ? a.join("\n") : "");
+
+function ProfileEditor({ demoId, profile, impersonating, onSaved }: { demoId: string; profile: ProfileShape | null; impersonating: boolean; onSaved: () => void }) {
+  const { toast } = useToast();
+  const updateDemo = useUpdateDemo();
+  const initial = profile ?? {};
+  const [businessName, setBusinessName] = useState(initial.businessName ?? "");
+  const [industry, setIndustry] = useState(initial.industry ?? "");
+  const [summary, setSummary] = useState(initial.summary ?? "");
+  const [services, setServices] = useState(arrToLines(initial.services));
+  const [serviceArea, setServiceArea] = useState(initial.serviceArea ?? "");
+  const [phone, setPhone] = useState(initial.phone ?? "");
+  const [hours, setHours] = useState(initial.hours ?? "");
+  const [differentiators, setDifferentiators] = useState(arrToLines(initial.differentiators));
+  const [customerTypes, setCustomerTypes] = useState(arrToLines(initial.customerTypes));
+  const [commonQuestions, setCommonQuestions] = useState(arrToLines(initial.commonQuestions));
+  const [unknowns, setUnknowns] = useState(arrToLines(initial.unknowns));
+  const [sourceNotes, setSourceNotes] = useState<{ title: string; url: string; note: string }[]>(
+    (initial.sourceNotes ?? []).map((s) => ({ title: s.title ?? "", url: s.url ?? "", note: s.note ?? "" })),
+  );
+
+  if (!profile) {
+    return (
+      <Card>
+        <CardHeader><CardTitle>Business Profile</CardTitle></CardHeader>
+        <CardContent><p className="text-sm text-muted-foreground">No profile yet. Run AI enrichment first.</p></CardContent>
+      </Card>
+    );
+  }
+
+  const handleSave = () => {
+    const next = {
+      businessName,
+      industry,
+      summary,
+      services: linesToArr(services),
+      serviceArea,
+      phone,
+      hours,
+      differentiators: linesToArr(differentiators),
+      customerTypes: linesToArr(customerTypes),
+      commonQuestions: linesToArr(commonQuestions),
+      unknowns: linesToArr(unknowns),
+      sourceNotes: sourceNotes
+        .map((s) => ({ title: s.title.trim(), url: s.url.trim(), note: s.note.trim() }))
+        .filter((s) => s.title || s.url || s.note),
+    };
+    updateDemo.mutate({ id: demoId, data: { businessProfile: next } }, {
+      onSuccess: () => { toast({ title: "Business profile saved" }); onSaved(); },
+      onError: () => toast({ title: "Save failed", variant: "destructive" }),
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Business Profile</CardTitle>
+        <CardDescription>Edit any field, then click Save. The AI-generated voice prompt is not changed by these edits.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-2">
+          <div><Label>Business Name</Label><Input value={businessName} onChange={(e) => setBusinessName(e.target.value)} data-testid="input-bp-name" /></div>
+          <div><Label>Industry</Label><Input value={industry} onChange={(e) => setIndustry(e.target.value)} data-testid="input-bp-industry" /></div>
+        </div>
+        <div><Label>Summary</Label><Textarea rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} data-testid="input-bp-summary" /></div>
+        <div><Label>Services (one per line)</Label><Textarea rows={4} value={services} onChange={(e) => setServices(e.target.value)} data-testid="input-bp-services" /></div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <div><Label>Service Area</Label><Input value={serviceArea} onChange={(e) => setServiceArea(e.target.value)} data-testid="input-bp-area" /></div>
+          <div><Label>Phone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} data-testid="input-bp-phone" /></div>
+          <div><Label>Hours</Label><Input value={hours} onChange={(e) => setHours(e.target.value)} data-testid="input-bp-hours" /></div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div><Label>Differentiators (one per line)</Label><Textarea rows={4} value={differentiators} onChange={(e) => setDifferentiators(e.target.value)} data-testid="input-bp-diff" /></div>
+          <div><Label>Customer Types (one per line)</Label><Textarea rows={4} value={customerTypes} onChange={(e) => setCustomerTypes(e.target.value)} data-testid="input-bp-customers" /></div>
+          <div><Label>Common Questions (one per line)</Label><Textarea rows={4} value={commonQuestions} onChange={(e) => setCommonQuestions(e.target.value)} data-testid="input-bp-questions" /></div>
+          <div><Label>Unknowns / Needs Review (one per line)</Label><Textarea rows={4} value={unknowns} onChange={(e) => setUnknowns(e.target.value)} data-testid="input-bp-unknowns" /></div>
+        </div>
+        <div className="space-y-2">
+          <Label>Source Notes</Label>
+          {sourceNotes.length === 0 && <p className="text-xs text-muted-foreground">No sources captured.</p>}
+          {sourceNotes.map((s, i) => (
+            <div key={i} className="grid gap-2 md:grid-cols-12 items-start rounded border p-2">
+              <Input className="md:col-span-3" placeholder="Title" value={s.title} onChange={(e) => setSourceNotes((prev) => prev.map((x, j) => j === i ? { ...x, title: e.target.value } : x))} />
+              <Input className="md:col-span-4" placeholder="https://..." value={s.url} onChange={(e) => setSourceNotes((prev) => prev.map((x, j) => j === i ? { ...x, url: e.target.value } : x))} />
+              <Input className="md:col-span-4" placeholder="Note" value={s.note} onChange={(e) => setSourceNotes((prev) => prev.map((x, j) => j === i ? { ...x, note: e.target.value } : x))} />
+              <Button className="md:col-span-1" variant="outline" size="sm" onClick={() => setSourceNotes((prev) => prev.filter((_, j) => j !== i))}>Remove</Button>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={() => setSourceNotes((prev) => [...prev, { title: "", url: "", note: "" }])} data-testid="btn-bp-add-source">Add Source</Button>
+        </div>
+        <div className="flex justify-end">
+          <Button onClick={handleSave} disabled={updateDemo.isPending || impersonating} data-testid="btn-save-profile">
+            {updateDemo.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Save Business Profile
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PackageEditor({ demoId, pkg, impersonating, onSaved }: { demoId: string; pkg: PackageShape | null; impersonating: boolean; onSaved: () => void }) {
+  const { toast } = useToast();
+  const updateDemo = useUpdateDemo();
+  const initial = pkg ?? {};
+  const [agentName, setAgentName] = useState(initial.agentName ?? "");
+  const [agentRole, setAgentRole] = useState(initial.agentRole ?? "");
+  const [tone, setTone] = useState(initial.tone ?? "");
+  const [conversationGoal, setConversationGoal] = useState(initial.conversationGoal ?? "");
+  const [openingScript, setOpeningScript] = useState(initial.openingScript ?? "");
+  const [qualificationQuestions, setQualificationQuestions] = useState(arrToLines(initial.qualificationQuestions));
+  const [escalationRules, setEscalationRules] = useState(arrToLines(initial.escalationRules));
+  const [complianceBoundaries, setComplianceBoundaries] = useState(arrToLines(initial.complianceBoundaries));
+  const [bookingInstructions, setBookingInstructions] = useState(initial.bookingInstructions ?? "");
+  const [objectionHandlers, setObjectionHandlers] = useState<{ objection: string; response: string }[]>(
+    (initial.objectionHandlers ?? []).map((o) => ({ objection: o.objection ?? "", response: o.response ?? "" })),
+  );
+
+  if (!pkg) {
+    return (
+      <Card>
+        <CardHeader><CardTitle>Voice Agent Package</CardTitle></CardHeader>
+        <CardContent><p className="text-sm text-muted-foreground">No package yet. Run AI enrichment first.</p></CardContent>
+      </Card>
+    );
+  }
+
+  const handleSave = () => {
+    const next = {
+      agentName,
+      agentRole,
+      tone,
+      conversationGoal,
+      openingScript,
+      qualificationQuestions: linesToArr(qualificationQuestions),
+      escalationRules: linesToArr(escalationRules),
+      complianceBoundaries: linesToArr(complianceBoundaries),
+      bookingInstructions,
+      objectionHandlers: objectionHandlers
+        .map((o) => ({ objection: o.objection.trim(), response: o.response.trim() }))
+        .filter((o) => o.objection || o.response),
+    };
+    updateDemo.mutate({ id: demoId, data: { voiceAgentPackage: next } }, {
+      onSuccess: () => { toast({ title: "Voice agent package saved" }); onSaved(); },
+      onError: () => toast({ title: "Save failed", variant: "destructive" }),
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Voice Agent Package</CardTitle>
+        <CardDescription>Edit the agent strategy. Saved changes do not overwrite the AI-generated voice prompt — use Regenerate to rebuild that.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-2">
+          <div><Label>Agent Name</Label><Input value={agentName} onChange={(e) => setAgentName(e.target.value)} data-testid="input-pkg-name" /></div>
+          <div><Label>Agent Role</Label><Input value={agentRole} onChange={(e) => setAgentRole(e.target.value)} data-testid="input-pkg-role" /></div>
+          <div><Label>Tone</Label><Input value={tone} onChange={(e) => setTone(e.target.value)} data-testid="input-pkg-tone" /></div>
+          <div><Label>Conversation Goal</Label><Input value={conversationGoal} onChange={(e) => setConversationGoal(e.target.value)} data-testid="input-pkg-goal" /></div>
+        </div>
+        <div><Label>Opening Script</Label><Textarea rows={3} value={openingScript} onChange={(e) => setOpeningScript(e.target.value)} data-testid="input-pkg-opening" /></div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div><Label>Qualification Questions (one per line)</Label><Textarea rows={4} value={qualificationQuestions} onChange={(e) => setQualificationQuestions(e.target.value)} data-testid="input-pkg-quals" /></div>
+          <div><Label>Escalation Rules (one per line)</Label><Textarea rows={4} value={escalationRules} onChange={(e) => setEscalationRules(e.target.value)} data-testid="input-pkg-escalation" /></div>
+          <div className="md:col-span-2"><Label>Compliance Boundaries (one per line)</Label><Textarea rows={3} value={complianceBoundaries} onChange={(e) => setComplianceBoundaries(e.target.value)} data-testid="input-pkg-compliance" /></div>
+        </div>
+        <div><Label>Booking Instructions</Label><Textarea rows={3} value={bookingInstructions} onChange={(e) => setBookingInstructions(e.target.value)} data-testid="input-pkg-booking" /></div>
+        <div className="space-y-2">
+          <Label>Objection Handlers</Label>
+          {objectionHandlers.length === 0 && <p className="text-xs text-muted-foreground">No objection handlers captured.</p>}
+          {objectionHandlers.map((o, i) => (
+            <div key={i} className="grid gap-2 md:grid-cols-12 items-start rounded border p-2">
+              <Input className="md:col-span-4" placeholder='Objection (e.g. "Too expensive")' value={o.objection} onChange={(e) => setObjectionHandlers((prev) => prev.map((x, j) => j === i ? { ...x, objection: e.target.value } : x))} />
+              <Input className="md:col-span-7" placeholder="Suggested response" value={o.response} onChange={(e) => setObjectionHandlers((prev) => prev.map((x, j) => j === i ? { ...x, response: e.target.value } : x))} />
+              <Button className="md:col-span-1" variant="outline" size="sm" onClick={() => setObjectionHandlers((prev) => prev.filter((_, j) => j !== i))}>Remove</Button>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={() => setObjectionHandlers((prev) => [...prev, { objection: "", response: "" }])} data-testid="btn-pkg-add-objection">Add Objection</Button>
+        </div>
+        <div className="flex justify-end">
+          <Button onClick={handleSave} disabled={updateDemo.isPending || impersonating} data-testid="btn-save-package">
+            {updateDemo.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Save Voice Agent Package
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

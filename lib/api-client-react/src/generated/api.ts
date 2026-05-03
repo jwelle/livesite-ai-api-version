@@ -42,6 +42,7 @@ import type {
   PromptVersion,
   PublicDemo,
   PushGhlResult,
+  RegenerateDemoPromptBody,
   SuccessEnvelope,
   UpdateDemoBody,
   UpdateSettingsBody,
@@ -1318,11 +1319,14 @@ export const getRegenerateDemoPromptUrl = (id: string) => {
 
 export const regenerateDemoPrompt = async (
   id: string,
+  regenerateDemoPromptBody?: RegenerateDemoPromptBody,
   options?: RequestInit,
 ): Promise<Demo> => {
   return customFetch<Demo>(getRegenerateDemoPromptUrl(id), {
     ...options,
     method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(regenerateDemoPromptBody),
   });
 };
 
@@ -1333,14 +1337,14 @@ export const getRegenerateDemoPromptMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof regenerateDemoPrompt>>,
     TError,
-    { id: string },
+    { id: string; data: BodyType<RegenerateDemoPromptBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof regenerateDemoPrompt>>,
   TError,
-  { id: string },
+  { id: string; data: BodyType<RegenerateDemoPromptBody> },
   TContext
 > => {
   const mutationKey = ["regenerateDemoPrompt"];
@@ -1354,11 +1358,11 @@ export const getRegenerateDemoPromptMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof regenerateDemoPrompt>>,
-    { id: string }
+    { id: string; data: BodyType<RegenerateDemoPromptBody> }
   > = (props) => {
-    const { id } = props ?? {};
+    const { id, data } = props ?? {};
 
-    return regenerateDemoPrompt(id, requestOptions);
+    return regenerateDemoPrompt(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1367,7 +1371,8 @@ export const getRegenerateDemoPromptMutationOptions = <
 export type RegenerateDemoPromptMutationResult = NonNullable<
   Awaited<ReturnType<typeof regenerateDemoPrompt>>
 >;
-
+export type RegenerateDemoPromptMutationBody =
+  BodyType<RegenerateDemoPromptBody>;
 export type RegenerateDemoPromptMutationError = ErrorType<void>;
 
 /**
@@ -1380,14 +1385,14 @@ export const useRegenerateDemoPrompt = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof regenerateDemoPrompt>>,
     TError,
-    { id: string },
+    { id: string; data: BodyType<RegenerateDemoPromptBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof regenerateDemoPrompt>>,
   TError,
-  { id: string },
+  { id: string; data: BodyType<RegenerateDemoPromptBody> },
   TContext
 > => {
   return useMutation(getRegenerateDemoPromptMutationOptions(options));

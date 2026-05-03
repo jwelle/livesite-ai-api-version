@@ -27,14 +27,25 @@ import { Spinner } from "@/components/ui/spinner";
 
 const formSchema = z.object({
   companyName: z.string().min(1, "Company name is required"),
-  websiteUrl: z.string().min(1, "Website URL is required"),
+  websiteUrl: z
+    .string()
+    .min(1, "Website URL is required")
+    .refine((v) => {
+      const value = /^https?:\/\//i.test(v) ? v : `https://${v}`;
+      try {
+        const u = new URL(value);
+        return u.protocol === "http:" || u.protocol === "https:";
+      } catch {
+        return false;
+      }
+    }, "Must be a valid website URL (e.g. https://acmecorp.com)"),
   industry: z.string().optional(),
   contactName: z.string().optional(),
   contactEmail: z.string().email("Must be a valid email").optional().or(z.literal("")),
   contactPhone: z.string().optional(),
   voiceAiPhoneNumber: z.string().optional(),
   voicePersonaName: z.string().optional(),
-  voiceAiGoal: z.string().optional(),
+  voiceAiGoal: z.string().min(1, "Voice Agent Goal is required"),
   desiredTone: z.string().optional(),
   primaryCta: z.string().optional(),
   optionalNotes: z.string().optional(),

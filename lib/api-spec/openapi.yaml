@@ -342,6 +342,20 @@ paths:
       summary: Regenerate the AI prompt for a demo
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode:
+                  type: string
+                  enum: [replace, separate]
+                  description: |
+                    "replace" updates aiGeneratedPrompt, currentWorkingPrompt, and the structured profile/package on the demo.
+                    "separate" runs a fresh OpenAI generation but only records a new prompt_versions row, leaving the demo's
+                    current AI prompt and working prompt untouched. Defaults to "replace".
       responses:
         '200':
           description: Updated demo (new aiGeneratedPrompt; currentWorkingPrompt unchanged)

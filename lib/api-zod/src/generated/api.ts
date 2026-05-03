@@ -845,6 +845,15 @@ export const RegenerateDemoPromptParams = zod.object({
   id: zod.coerce.string(),
 });
 
+export const RegenerateDemoPromptBody = zod.object({
+  mode: zod
+    .enum(["replace", "separate"])
+    .optional()
+    .describe(
+      '\"replace\" updates aiGeneratedPrompt, currentWorkingPrompt, and the structured profile\/package on the demo.\n\"separate\" runs a fresh OpenAI generation but only records a new prompt_versions row, leaving the demo\'s\ncurrent AI prompt and working prompt untouched. Defaults to \"replace\".\n',
+    ),
+});
+
 export const RegenerateDemoPromptResponse = zod.object({
   id: zod.string(),
   userId: zod.string(),

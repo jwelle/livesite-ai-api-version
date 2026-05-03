@@ -19,10 +19,7 @@ import {
 import {
   runEnrichment,
   isOpenAIConfigured,
-  buildFinalPrompt,
   type EnrichInput,
-  type BusinessProfile,
-  type VoiceAgentPackage,
 } from "../services/enrichmentService";
 import { seedIfEmpty } from "../services/seed";
 import { blockDuringImpersonation } from "../middlewares/authMiddleware";
@@ -475,6 +472,10 @@ router.post("/demos/:id/enrich", blockMutateForImpersonation, async (req, res) =
     res.status(400).json({ error: "Voice Agent Goal is required before enrichment." });
     return;
   }
+  if (!isValidHttpUrl(demo.websiteUrl)) {
+    res.status(400).json({ error: "Demo website URL is not a valid http(s) URL. Update the demo before enriching." });
+    return;
+  }
   const [settings] = await db
     .select()
     .from(agencySettingsTable)
@@ -538,57 +539,57 @@ router.post("/demos/:id/regenerate", blockMutateForImpersonation, async (req, re
     res.status(400).json({ error: "Voice Agent Goal is required before regeneration." });
     return;
   }
+  if (!isValidHttpUrl(demo.websiteUrl)) {
+    res.status(400).json({ error: "Demo website URL is not a valid http(s) URL. Update the demo before regenerating." });
+    return;
+  }
+  const mode: "replace" | "separate" =
+    req.body && (req.body as { mode?: unknown }).mode === "separate"
+      ? "separate"
+      : "replace";
   const [regenSettings] = await db
     .select()
     .from(agencySettingsTable)
     .where(eq(agencySettingsTable.userId, req.user.id));
   const disclaimer = regenSettings?.defaultDisclaimer || null;
   try {
-    let aiGeneratedPrompt: string;
-    if (demo.businessProfile && demo.voiceAgentPackage) {
-      // Regenerate prompt from existing structured data without re-enriching.
-      aiGeneratedPrompt = buildFinalPrompt(
-        demo.businessProfile as unknown as BusinessProfile,
-        demo.voiceAgentPackage as unknown as VoiceAgentPackage,
-        {
-          businessName: demo.companyName,
-          websiteUrl: demo.websiteUrl,
-          industry: demo.industry,
-          agentGoal: demo.voiceAiGoal,
-          tone: demo.desiredTone,
-          primaryCta: demo.primaryCta,
-          optionalNotes: demo.optionalNotes,
-          disclaimer,
-        },
-      );
-    } else {
-      const input: EnrichInput = {
-        businessName: demo.companyName,
-        websiteUrl: demo.websiteUrl,
-        industry: demo.industry,
-        agentGoal: demo.voiceAiGoal,
-        tone: demo.desiredTone,
-        primaryCta: demo.primaryCta,
-        optionalNotes: demo.optionalNotes,
-        disclaimer,
-      };
-      const result = await runEnrichment(input);
-      aiGeneratedPrompt = result.aiGeneratedPrompt;
-      await db.update(demosTable).set({
-        businessProfile: result.businessProfile,
-        voiceAgentPackage: result.voiceAgentPackage,
-      }).where(eq(demosTable.id, demo.id));
+    const input: EnrichInput = {
+      businessName: demo.companyName,
+      websiteUrl: demo.websiteUrl,
+      industry: demo.industry,
+      agentGoal: demo.voiceAiGoal,
+      tone: demo.desiredTone,
+      primaryCta: demo.primaryCta,
+      optionalNotes: demo.optionalNotes,
+      disclaimer,
+    };
+    const result = await runEnrichment(input);
+    if (mode === "separate") {
+      await db.insert(promptVersionsTable).values({
+        demoId: demo.id,
+        type: "regenerated_separate",
+        promptText: result.aiGeneratedPrompt,
+        notes: "Saved as a separate version; demo's AI prompt and working prompt were not changed.",
+      });
+      res.json(demo);
+      return;
     }
-    // Save the new AI-generated prompt; preserve currentWorkingPrompt as-is.
     const [updated] = await db
       .update(demosTable)
-      .set({ aiGeneratedPrompt })
+      .set({
+        businessProfile: result.businessProfile,
+        voiceAgentPackage: result.voiceAgentPackage,
+        aiGeneratedPrompt: result.aiGeneratedPrompt,
+        currentWorkingPrompt: result.aiGeneratedPrompt,
+        status: "enriched",
+      })
       .where(eq(demosTable.id, demo.id))
       .returning();
     await db.insert(promptVersionsTable).values({
       demoId: demo.id,
       type: "regenerated",
-      promptText: aiGeneratedPrompt,
+      promptText: result.aiGeneratedPrompt,
+      notes: result.limitedResults ? "Limited public information found." : null,
     });
     res.json(updated);
   } catch (err) {
@@ -667,20 +668,10 @@ router.post("/demos/:id/push-ghl", blockMutateForImpersonation, async (req, res)
     .from(demosTable)
     .where(and(eq(demosTable.id, params.data.id), eq(demosTable.userId, req.user.id)));
   if (!demo) { res.status(404).json({ error: "Demo not found" }); return; }
-  // V1 placeholder — GHL push API not configured. When a real push integration
-  // is wired in, set `success` to true on success and the demo status will
-  // advance to `pushed_to_ghl`.
-  const success = false as boolean;
-  const message = success
-    ? "Pushed to GHL."
-    : "GHL push is not configured yet. You can copy the final prompt and paste it into your voice agent manually.";
-  if (success) {
-    await db
-      .update(demosTable)
-      .set({ status: "pushed_to_ghl" })
-      .where(eq(demosTable.id, demo.id));
-  }
-  res.json({ success, message });
+  res.json({
+    success: false,
+    message: "GHL push is not configured yet. Copy the final prompt and paste it into your voice agent manually.",
+  });
 });
 
 router.get("/demos/:id/prompt-versions", async (req, res) => {
