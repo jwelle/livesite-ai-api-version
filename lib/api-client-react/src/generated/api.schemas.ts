@@ -144,35 +144,6 @@ export interface SuccessEnvelope {
   success: boolean;
 }
 
-export type DemoExtractedFaqs =
-  | {
-      question: string;
-      answer_guidance: string;
-    }[]
-  | null;
-
-export type DemoWebsiteAnalysisStatus =
-  (typeof DemoWebsiteAnalysisStatus)[keyof typeof DemoWebsiteAnalysisStatus];
-
-export const DemoWebsiteAnalysisStatus = {
-  not_started: "not_started",
-  in_progress: "in_progress",
-  completed: "completed",
-  failed: "failed",
-} as const;
-
-/**
- * @nullable
- */
-export type DemoWebsiteAnalysisSource =
-  | (typeof DemoWebsiteAnalysisSource)[keyof typeof DemoWebsiteAnalysisSource]
-  | null;
-
-export const DemoWebsiteAnalysisSource = {
-  openai: "openai",
-  basic: "basic",
-} as const;
-
 export type DemoStatus = (typeof DemoStatus)[keyof typeof DemoStatus];
 
 export const DemoStatus = {
@@ -217,39 +188,6 @@ export interface Demo {
   customDemoMessage?: string | null;
   /** @nullable */
   internalNotes?: string | null;
-  /** @nullable */
-  websiteTitle?: string | null;
-  /** @nullable */
-  websiteMetaDescription?: string | null;
-  websiteHeadings?: string[] | null;
-  /** @nullable */
-  websiteRawTextExcerpt?: string | null;
-  /** @nullable */
-  extractedBusinessSummary?: string | null;
-  extractedServices?: string[] | null;
-  /** @nullable */
-  extractedServiceArea?: string | null;
-  extractedFaqs?: DemoExtractedFaqs;
-  /** @nullable */
-  extractedTone?: string | null;
-  /** @nullable */
-  extractedTargetCustomers?: string | null;
-  /** @nullable */
-  suggestedChatPersona?: string | null;
-  /** @nullable */
-  suggestedVoicePersona?: string | null;
-  suggestedLeadQuestions?: string[] | null;
-  /** @nullable */
-  generatedChatContext?: string | null;
-  /** @nullable */
-  generatedVoicePrompt?: string | null;
-  missingInformation?: string[] | null;
-  websiteAnalysisStatus?: DemoWebsiteAnalysisStatus;
-  /** @nullable */
-  websiteAnalysisError?: string | null;
-  websiteAnalyzedAt?: string | null;
-  /** @nullable */
-  websiteAnalysisSource?: DemoWebsiteAnalysisSource;
   status: DemoStatus;
   viewCount: number;
   callClickCount: number;
@@ -379,8 +317,6 @@ export interface AgencySettings {
   defaultGhlWidgetId?: string | null;
   /** @nullable */
   defaultChatPersonaName?: string | null;
-  enableOpenAiWebsiteIntelligence: boolean;
-  hasOpenAiKey: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -406,59 +342,6 @@ export interface UpdateSettingsBody {
   defaultGhlWidgetId?: string | null;
   /** @nullable */
   defaultChatPersonaName?: string | null;
-  enableOpenAiWebsiteIntelligence?: boolean;
-}
-
-/**
- * Empty body. OpenAI use is controlled by the agency's persisted enableOpenAiWebsiteIntelligence setting plus server-side key presence; the client cannot override it.
- */
-export interface AnalyzeWebsiteBody {
-  [key: string]: unknown;
-}
-
-export type AnalyzeWebsiteResponseSource =
-  (typeof AnalyzeWebsiteResponseSource)[keyof typeof AnalyzeWebsiteResponseSource];
-
-export const AnalyzeWebsiteResponseSource = {
-  openai: "openai",
-  basic: "basic",
-} as const;
-
-export interface AnalyzeWebsiteResponse {
-  demo: Demo;
-  source: AnalyzeWebsiteResponseSource;
-  warnings: string[];
-}
-
-export type AnalyzeWebsiteErrorCode =
-  (typeof AnalyzeWebsiteErrorCode)[keyof typeof AnalyzeWebsiteErrorCode];
-
-export const AnalyzeWebsiteErrorCode = {
-  INVALID_URL: "INVALID_URL",
-  BLOCKED_PROTOCOL: "BLOCKED_PROTOCOL",
-  BLOCKED_HOST: "BLOCKED_HOST",
-  DNS_ERROR: "DNS_ERROR",
-  TIMEOUT: "TIMEOUT",
-  FETCH_FAILED: "FETCH_FAILED",
-  HTTP_ERROR: "HTTP_ERROR",
-  NON_HTML: "NON_HTML",
-  ANALYSIS_FAILED: "ANALYSIS_FAILED",
-} as const;
-
-export interface AnalyzeWebsiteError {
-  error: string;
-  code: AnalyzeWebsiteErrorCode;
-}
-
-/**
- * When overwrite is false, only empty target fields are filled.
-When overwrite is true, populated fields are replaced too. The
-UI is responsible for confirming with the user before sending
-overwrite=true.
-
- */
-export interface ApplyWebsiteIntelligenceBody {
-  overwrite: boolean;
 }
 
 export interface DashboardStats {

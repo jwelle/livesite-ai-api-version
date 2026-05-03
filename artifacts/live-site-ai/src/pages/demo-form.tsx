@@ -3,14 +3,7 @@ import { useLocation, useParams } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import {
-  useCreateDemo,
-  useUpdateDemo,
-  useGetDemo,
-  useAnalyzeDemoWebsite,
-  getGetDemoQueryKey,
-  getGetDemosQueryKey,
-} from "@workspace/api-client-react";
+import { useCreateDemo, useUpdateDemo, useGetDemo, getGetDemoQueryKey, getGetDemosQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -19,8 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, Save, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2, Save } from "lucide-react";
 import { Link } from "wouter";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -64,30 +56,6 @@ export default function DemoForm() {
 
   const createDemo = useCreateDemo();
   const updateDemo = useUpdateDemo();
-  const analyzeWebsite = useAnalyzeDemoWebsite();
-
-  const runAnalysis = (demoId: string, onDone?: () => void) => {
-    analyzeWebsite.mutate(
-      { id: demoId, data: {} },
-      {
-        onSuccess: (data) => {
-          queryClient.invalidateQueries({ queryKey: getGetDemoQueryKey(demoId) });
-          const sourceLabel = data.source === "openai" ? "OpenAI" : "Basic parser";
-          toast({
-            title: `Website analyzed (${sourceLabel})`,
-            description: data.warnings.length > 0 ? data.warnings[0] : "Open the demo to review and apply suggestions.",
-          });
-          onDone?.();
-        },
-        onError: (err: unknown) => {
-          const e = err as { response?: { data?: { error?: string } }; message?: string };
-          const msg = e?.response?.data?.error || e?.message || "Failed to analyze website";
-          toast({ title: "Website analysis failed", description: msg, variant: "destructive" });
-          onDone?.();
-        },
-      },
-    );
-  };
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -212,77 +180,9 @@ export default function DemoForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Website URL *</FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                        <Input placeholder="https://acmecorp.com" {...field} data-testid="input-website-url" />
-                      </FormControl>
-                      {isEdit && id ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => runAnalysis(id)}
-                          disabled={analyzeWebsite.isPending || !field.value}
-                          data-testid="btn-inline-analyze"
-                        >
-                          {analyzeWebsite.isPending ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : (
-                            <Sparkles className="mr-2 h-4 w-4" />
-                          )}
-                          {demo?.websiteAnalyzedAt ? "Re-analyze" : "Analyze"}
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={form.handleSubmit((vals) => {
-                            if (!vals.websiteUrl || !vals.companyName) {
-                              toast({ title: "Add a company name and website first" });
-                              return;
-                            }
-                            createDemo.mutate({ data: vals }, {
-                              onSuccess: (newDemo) => {
-                                toast({ title: "Demo created — analyzing website…" });
-                                queryClient.invalidateQueries({ queryKey: getGetDemosQueryKey() });
-                                runAnalysis(newDemo.id, () => setLocation(`/demos/${newDemo.id}`));
-                              },
-                              onError: () => toast({ title: "Failed to create demo", variant: "destructive" }),
-                            });
-                          })}
-                          disabled={createDemo.isPending || analyzeWebsite.isPending || !field.value}
-                          data-testid="btn-inline-analyze"
-                        >
-                          {createDemo.isPending || analyzeWebsite.isPending ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : (
-                            <Sparkles className="mr-2 h-4 w-4" />
-                          )}
-                          Save & Analyze
-                        </Button>
-                      )}
-                    </div>
-                    <FormDescription>
-                      Analyze fetches the homepage and generates a tailored AI prompt and suggestions.
-                    </FormDescription>
-                    {isEdit && demo?.websiteAnalyzedAt && (
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-2">
-                        <Badge variant="outline" data-testid="badge-form-analysis-status">
-                          {demo.websiteAnalysisStatus === "completed"
-                            ? "Analyzed"
-                            : demo.websiteAnalysisStatus === "failed"
-                              ? "Last attempt failed"
-                              : demo.websiteAnalysisStatus === "in_progress"
-                                ? "Analyzing…"
-                                : "Not analyzed"}
-                        </Badge>
-                        <span>
-                          Source: {demo.websiteAnalysisSource === "openai" ? "OpenAI" : demo.websiteAnalysisSource === "basic" ? "Basic parser" : "Manual"}
-                        </span>
-                        {demo.extractedBusinessSummary && (
-                          <span className="line-clamp-1">· {demo.extractedBusinessSummary}</span>
-                        )}
-                      </div>
-                    )}
+                    <FormControl>
+                      <Input placeholder="https://acmecorp.com" {...field} data-testid="input-website-url" />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
