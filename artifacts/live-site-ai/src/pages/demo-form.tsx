@@ -18,7 +18,7 @@ import { Spinner } from "@/components/ui/spinner";
 
 const formSchema = z.object({
   companyName: z.string().min(1, "Company name is required"),
-  websiteUrl: z.string().url("Must be a valid URL"),
+  websiteUrl: z.string().min(1, "Website URL is required"),
   industry: z.string().optional(),
   contactName: z.string().optional(),
   contactEmail: z.string().email("Must be a valid email").optional().or(z.literal("")),

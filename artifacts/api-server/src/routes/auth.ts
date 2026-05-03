@@ -82,6 +82,14 @@ async function upsertUser(claims: Record<string, unknown>) {
   return user;
 }
 
+router.get("/auth/me", (req: Request, res: Response) => {
+  res.json(
+    GetCurrentAuthUserResponse.parse({
+      user: req.isAuthenticated() ? req.user : null,
+    }),
+  );
+});
+
 router.get("/auth/user", (req: Request, res: Response) => {
   res.json(
     GetCurrentAuthUserResponse.parse({
@@ -185,6 +193,18 @@ router.get("/callback", async (req: Request, res: Response) => {
   const sid = await createSession(sessionData);
   setSessionCookie(res, sid);
   res.redirect(returnTo);
+});
+
+router.get("/auth/logout", async (req: Request, res: Response) => {
+  const config = await getOidcConfig();
+  const origin = getOrigin(req);
+  const sid = getSessionId(req);
+  await clearSession(res, sid);
+  const endSessionUrl = oidc.buildEndSessionUrl(config, {
+    client_id: process.env.REPL_ID!,
+    post_logout_redirect_uri: origin,
+  });
+  res.redirect(endSessionUrl.href);
 });
 
 router.get("/logout", async (req: Request, res: Response) => {

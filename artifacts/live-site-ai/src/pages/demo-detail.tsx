@@ -3,7 +3,7 @@ import { useParams, useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ExternalLink, Copy, Edit, Trash2, RefreshCw, Eye, Phone, Calendar, Bot, Globe } from "lucide-react";
+import { ArrowLeft, ExternalLink, Copy, Edit, Trash2, RefreshCw, Eye, Phone, Calendar, Bot, Globe, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Spinner } from "@/components/ui/spinner";

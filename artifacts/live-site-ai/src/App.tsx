@@ -12,6 +12,7 @@ import Settings from "@/pages/settings";
 import PublicDemo from "@/pages/public-demo";
 import { ProtectedRoute } from "@/components/protected-route";
 import { AppSidebar } from "@/components/layout/app-sidebar";
+import Signup from "@/pages/signup";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +28,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/login" component={Login} />
+      <Route path="/signup" component={Signup} />
       <Route path="/demo/:slug" component={PublicDemo} />
       
       {/* App Routes */}

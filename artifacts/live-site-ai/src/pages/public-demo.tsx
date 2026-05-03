@@ -1,4 +1,4 @@
-import { useGetPublicDemo, useTrackDemoView, useTrackDemoCallClick, useTrackDemoCalendarClick, useTrackDemoWebsiteOpenClick } from "@workspace/api-client-react";
+import { useGetPublicDemo, useTrackDemoView, useTrackDemoCallClick, useTrackDemoCalendarClick, useTrackDemoWebsiteOpenClick, getGetPublicDemoQueryKey } from "@workspace/api-client-react";
 import { useParams } from "wouter";
 import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,8 @@ export default function PublicDemo() {
   const { data: demo, isLoading } = useGetPublicDemo(slug as string, {
     query: {
       enabled: !!slug,
-      retry: false
+      retry: false,
+      queryKey: getGetPublicDemoQueryKey(slug as string),
     }
   });
 
@@ -31,39 +32,17 @@ export default function PublicDemo() {
     }
   }, [demo, slug, trackView]);
 
-  // Inject GHL Script
   useEffect(() => {
     if (!demo?.resolvedChatWidgetId) return;
-
-    // Check if script already exists to prevent duplicates
     const existingScript = document.querySelector('script[src="https://beta.leadconnectorhq.com/loader.js"]');
     if (existingScript) return;
-
     const script = document.createElement("script");
     script.src = "https://beta.leadconnectorhq.com/loader.js";
     script.setAttribute("data-resources-url", "https://beta.leadconnectorhq.com/chat-widget/loader.js");
     script.setAttribute("data-widget-id", demo.resolvedChatWidgetId);
     script.async = true;
-    
     document.body.appendChild(script);
-
-    return () => {
-      // We don't remove it on unmount because they might navigate away, but if we did, GHL widget leaves a lot of DOM nodes behind anyway
-    };
   }, [demo?.resolvedChatWidgetId]);
-
-  // Iframe timeout
-  useEffect(() => {
-    if (!demo) return;
-    const timer = setTimeout(() => {
-      // If after 3s we don't have a reliable way to know if iframe loaded (since cross-origin),
-      // we'll just leave it. If the user reports it fails, we show fallback.
-      // For now, we will rely on iframe onError which sometimes doesn't fire for X-Frame-Options.
-      // So we use a basic heuristic: if it's a known blocker (like google.com) we could fail fast.
-      // We'll keep it simple: no automatic failover unless onError triggers.
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [demo]);
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-background"><Spinner className="h-8 w-8 text-primary" /></div>;
