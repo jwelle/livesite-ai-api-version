@@ -9,6 +9,27 @@ export interface HealthStatus {
   status: string;
 }
 
+export type AuthUserRole = (typeof AuthUserRole)[keyof typeof AuthUserRole];
+
+export const AuthUserRole = {
+  user: "user",
+  admin: "admin",
+} as const;
+
+export type AuthUserStatus =
+  (typeof AuthUserStatus)[keyof typeof AuthUserStatus];
+
+export const AuthUserStatus = {
+  active: "active",
+  suspended: "suspended",
+} as const;
+
+export type AuthUserImpersonating = {
+  targetUserId: string;
+  /** @nullable */
+  targetEmail: string | null;
+} | null;
+
 export interface AuthUser {
   id: string;
   /** @nullable */
@@ -19,6 +40,74 @@ export interface AuthUser {
   lastName: string | null;
   /** @nullable */
   profileImageUrl: string | null;
+  role?: AuthUserRole;
+  status?: AuthUserStatus;
+  impersonating?: AuthUserImpersonating;
+}
+
+export interface AdminUserRow {
+  id: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  firstName: string | null;
+  /** @nullable */
+  lastName: string | null;
+  role: string;
+  status: string;
+  createdAt: string;
+  demoCount: number;
+  lastActivity: string | null;
+}
+
+export interface AdminUsersList {
+  page: number;
+  pageSize: number;
+  total: number;
+  items: AdminUserRow[];
+}
+
+export interface AdminDemoRow {
+  id: string;
+  companyName: string;
+  slug: string;
+  status: string;
+  viewCount: number;
+  callClickCount: number;
+  calendarClickCount: number;
+  createdAt: string;
+  userId: string;
+  /** @nullable */
+  ownerEmail: string | null;
+}
+
+export interface AdminDemosList {
+  page: number;
+  pageSize: number;
+  total: number;
+  items: AdminDemoRow[];
+}
+
+export interface AdminAuditLogRow {
+  id: string;
+  actorId: string;
+  /** @nullable */
+  actorEmail?: string | null;
+  action: string;
+  /** @nullable */
+  targetType?: string | null;
+  /** @nullable */
+  targetId?: string | null;
+  /** @nullable */
+  details?: string | null;
+  createdAt: string;
+}
+
+export interface AdminAuditLogList {
+  page: number;
+  pageSize: number;
+  total: number;
+  items: AdminAuditLogRow[];
 }
 
 export interface AuthUserEnvelope {
@@ -310,4 +399,21 @@ export type HandleBrowserLoginCallbackParams = {
   code?: string;
   state?: string;
   iss?: string;
+};
+
+export type GetAdminUsersParams = {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+};
+
+export type GetAdminDemosParams = {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+};
+
+export type GetAdminAuditLogParams = {
+  page?: number;
+  pageSize?: number;
 };

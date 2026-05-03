@@ -1,4 +1,5 @@
 import { useGetDemos, useGetDashboardStats, getGetDemosQueryKey, useDeleteDemo } from "@workspace/api-client-react";
+import { useAuth } from "@workspace/replit-auth-web";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,8 +18,13 @@ export default function Dashboard() {
   const deleteDemo = useDeleteDemo();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { impersonating } = useAuth();
 
   const handleDelete = (id: string) => {
+    if (impersonating) {
+      toast({ title: "Blocked", description: "Mutating actions are blocked while viewing as another user.", variant: "destructive" });
+      return;
+    }
     if (confirm("Are you sure you want to delete this demo?")) {
       deleteDemo.mutate({ id }, {
         onSuccess: () => {
@@ -157,7 +163,12 @@ export default function Dashboard() {
                               <LinkIcon className="mr-2 h-4 w-4" />
                               <span>Copy Link</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDelete(demo.id)} className="text-destructive focus:text-destructive">
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(demo.id)}
+                              disabled={!!impersonating}
+                              className="text-destructive focus:text-destructive"
+                              title={impersonating ? "Disabled while viewing as another user" : undefined}
+                            >
                               <Trash2 className="mr-2 h-4 w-4" />
                               <span>Delete</span>
                             </DropdownMenuItem>

@@ -13,12 +13,13 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, PlusCircle, Settings, LogOut, Code2 } from "lucide-react";
+import { LayoutDashboard, PlusCircle, Settings, LogOut, Code2, Shield, Users, FileText } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ReactNode } from "react";
+import { ImpersonationBanner } from "@/components/impersonation-banner";
 
 export function AppSidebar({ children }: { children: ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin, impersonating } = useAuth();
   const [location] = useLocation();
 
   const handleLogout = () => {
@@ -65,6 +66,40 @@ export function AppSidebar({ children }: { children: ReactNode }) {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+
+            {isAdmin && !impersonating && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Admin</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild isActive={location === "/admin/users"}>
+                        <Link href="/admin/users" data-testid="link-admin-users">
+                          <Users />
+                          <span>Users</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild isActive={location === "/admin/demos"}>
+                        <Link href="/admin/demos" data-testid="link-admin-demos">
+                          <FileText />
+                          <span>All Demos</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild isActive={location === "/admin/audit-log"}>
+                        <Link href="/admin/audit-log" data-testid="link-admin-audit">
+                          <Shield />
+                          <span>Audit Log</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
           </SidebarContent>
           <SidebarFooter className="p-4">
             <div className="flex items-center gap-3 mb-4">
@@ -84,6 +119,7 @@ export function AppSidebar({ children }: { children: ReactNode }) {
           </SidebarFooter>
         </Sidebar>
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <ImpersonationBanner />
           {children}
         </main>
       </div>

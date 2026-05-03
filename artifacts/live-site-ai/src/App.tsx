@@ -13,6 +13,10 @@ import PublicDemo from "@/pages/public-demo";
 import { ProtectedRoute } from "@/components/protected-route";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import Signup from "@/pages/signup";
+import AdminUsers from "@/pages/admin-users";
+import AdminDemos from "@/pages/admin-demos";
+import AdminAuditLog from "@/pages/admin-audit-log";
+import { AdminRoute } from "@/components/admin-route";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -71,7 +75,39 @@ function Router() {
           </AppSidebar>
         </ProtectedRoute>
       </Route>
-      
+
+      <Route path="/admin">
+        <AdminRoute>
+          <AppSidebar>
+            <AdminUsers />
+          </AppSidebar>
+        </AdminRoute>
+      </Route>
+
+      <Route path="/admin/users">
+        <AdminRoute>
+          <AppSidebar>
+            <AdminUsers />
+          </AppSidebar>
+        </AdminRoute>
+      </Route>
+
+      <Route path="/admin/demos">
+        <AdminRoute>
+          <AppSidebar>
+            <AdminDemos />
+          </AppSidebar>
+        </AdminRoute>
+      </Route>
+
+      <Route path="/admin/audit-log">
+        <AdminRoute>
+          <AppSidebar>
+            <AdminAuditLog />
+          </AppSidebar>
+        </AdminRoute>
+      </Route>
+
       <Route component={NotFound} />
     </Switch>
   );

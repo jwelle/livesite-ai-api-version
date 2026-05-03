@@ -11,8 +11,11 @@ import {
 } from "@workspace/api-zod";
 import { generateVoiceAIPrompt } from "../services/aiPromptService";
 import { seedIfEmpty } from "../services/seed";
+import { blockDuringImpersonation } from "../middlewares/authMiddleware";
 
 const router = Router();
+
+const blockMutateForImpersonation = blockDuringImpersonation;
 
 const FALLBACK_WIDGET_ID = "69c5a088532eaeb30be7c36d";
 const DEFAULT_VOICE_PHONE = "+1-555-555-5555";
@@ -80,7 +83,7 @@ router.get("/demos", async (req, res) => {
   res.json(demos);
 });
 
-router.post("/demos", async (req, res) => {
+router.post("/demos", blockMutateForImpersonation, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -155,14 +158,17 @@ router.get("/demos/:id", async (req, res) => {
     res.status(400).json({ error: "Invalid ID" });
     return;
   }
+  const isRealAdmin = req.realUser?.role === "admin" && !req.impersonation;
   const [demo] = await db
     .select()
     .from(demosTable)
     .where(
-      and(
-        eq(demosTable.id, params.data.id),
-        eq(demosTable.userId, req.user.id),
-      ),
+      isRealAdmin
+        ? eq(demosTable.id, params.data.id)
+        : and(
+            eq(demosTable.id, params.data.id),
+            eq(demosTable.userId, req.user.id),
+          ),
     );
   if (!demo) {
     res.status(404).json({ error: "Demo not found" });
@@ -171,7 +177,7 @@ router.get("/demos/:id", async (req, res) => {
   res.json(demo);
 });
 
-router.patch("/demos/:id", async (req, res) => {
+router.patch("/demos/:id", blockMutateForImpersonation, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -227,7 +233,7 @@ router.patch("/demos/:id", async (req, res) => {
   res.json(demo);
 });
 
-router.delete("/demos/:id", async (req, res) => {
+router.delete("/demos/:id", blockMutateForImpersonation, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -253,7 +259,7 @@ router.delete("/demos/:id", async (req, res) => {
   res.json({ success: true });
 });
 
-router.post("/demos/:id/regenerate-slug", async (req, res) => {
+router.post("/demos/:id/regenerate-slug", blockMutateForImpersonation, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;

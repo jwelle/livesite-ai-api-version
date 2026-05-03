@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, agencySettingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { UpdateSettingsBody } from "@workspace/api-zod";
+import { blockDuringImpersonation } from "../middlewares/authMiddleware";
 
 const router = Router();
 
@@ -36,7 +37,7 @@ router.get("/settings", async (req, res) => {
   res.json(settings);
 });
 
-router.patch("/settings", async (req, res) => {
+router.patch("/settings", blockDuringImpersonation, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;

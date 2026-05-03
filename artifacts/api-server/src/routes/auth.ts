@@ -7,6 +7,7 @@ import {
   LogoutMobileSessionResponse,
 } from "@workspace/api-zod";
 import { db, usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import {
   clearSession,
   getOidcConfig,
@@ -18,6 +19,7 @@ import {
   ISSUER_URL,
   type SessionData,
 } from "../lib/auth";
+import { isBootstrapAdmin } from "../services/audit";
 
 const OIDC_COOKIE_TTL = 10 * 60 * 1000;
 
@@ -79,23 +81,51 @@ async function upsertUser(claims: Record<string, unknown>) {
       },
     })
     .returning();
+
+  // Bootstrap admin: auto-promote any user whose email matches ADMIN_EMAILS.
+  if (user && isBootstrapAdmin(user.email) && user.role !== "admin") {
+    const [promoted] = await db
+      .update(usersTable)
+      .set({ role: "admin" })
+      .where(eq(usersTable.id, user.id))
+      .returning();
+    return promoted ?? user;
+  }
   return user;
 }
 
+function buildAuthPayload(req: Request) {
+  if (!req.isAuthenticated()) return { user: null };
+  const u = req.user;
+  // While impersonating, expose the effective (target) user's role/status
+  // so the client UI behaves as that user. Admin nav, AdminRoute guard,
+  // and `isAdmin` therefore become false. The banner uses `impersonating`
+  // to surface the active session and offer one-click exit.
+  return {
+    user: {
+      id: u.id,
+      email: u.email,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      profileImageUrl: u.profileImageUrl,
+      role: u.role ?? "user",
+      status: u.status ?? "active",
+      impersonating: req.impersonation
+        ? {
+            targetUserId: req.impersonation.targetUserId,
+            targetEmail: req.impersonation.targetEmail,
+          }
+        : null,
+    },
+  };
+}
+
 router.get("/auth/me", (req: Request, res: Response) => {
-  res.json(
-    GetCurrentAuthUserResponse.parse({
-      user: req.isAuthenticated() ? req.user : null,
-    }),
-  );
+  res.json(buildAuthPayload(req));
 });
 
 router.get("/auth/user", (req: Request, res: Response) => {
-  res.json(
-    GetCurrentAuthUserResponse.parse({
-      user: req.isAuthenticated() ? req.user : null,
-    }),
-  );
+  res.json(buildAuthPayload(req));
 });
 
 router.get("/login", async (req: Request, res: Response) => {

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, demosTable, agencySettingsTable, demoEventsTable } from "@workspace/db";
+import { db, demosTable, agencySettingsTable, demoEventsTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import {
   TrackDemoViewParams,
@@ -61,6 +61,14 @@ router.get("/public/demo/:slug", async (req, res) => {
   const demo = await getDemoBySlug(params.data.slug);
   if (!demo) {
     res.status(404).json({ error: "Demo not found" });
+    return;
+  }
+  const [owner] = await db
+    .select({ status: usersTable.status })
+    .from(usersTable)
+    .where(eq(usersTable.id, demo.userId));
+  if (owner?.status === "suspended") {
+    res.status(410).json({ error: "This demo is unavailable." });
     return;
   }
   const { widgetId, source } = await resolveWidgetId(demo);

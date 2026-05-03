@@ -7,25 +7,41 @@ interface AuthState {
   user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isAdmin: boolean;
+  impersonating: { targetUserId: string; targetEmail: string | null } | null;
+  refresh: () => Promise<void>;
   login: (returnTo?: string) => void;
   logout: () => void;
+}
+
+async function fetchMe(): Promise<AuthUser | null> {
+  const res = await fetch("/api/auth/user", { credentials: "include" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = (await res.json()) as { user: AuthUser | null };
+  return data.user ?? null;
 }
 
 export function useAuth(): AuthState {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const refresh = useCallback(async () => {
+    try {
+      const u = await fetchMe();
+      setUser(u);
+    } catch {
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-
-    fetch("/api/auth/user", { credentials: "include" })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<{ user: AuthUser | null }>;
-      })
-      .then((data) => {
+    fetchMe()
+      .then((u) => {
         if (!cancelled) {
-          setUser(data.user ?? null);
+          setUser(u);
           setIsLoading(false);
         }
       })
@@ -35,7 +51,6 @@ export function useAuth(): AuthState {
           setIsLoading(false);
         }
       });
-
     return () => {
       cancelled = true;
     };
@@ -54,6 +69,9 @@ export function useAuth(): AuthState {
     user,
     isLoading,
     isAuthenticated: !!user,
+    isAdmin: user?.role === "admin",
+    impersonating: user?.impersonating ?? null,
+    refresh,
     login,
     logout,
   };

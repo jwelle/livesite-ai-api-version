@@ -33,6 +33,17 @@ export const GetCurrentAuthUserResponse = zod.object({
       firstName: zod.string().nullable(),
       lastName: zod.string().nullable(),
       profileImageUrl: zod.string().nullable(),
+      role: zod.enum(["user", "admin"]).optional(),
+      status: zod.enum(["active", "suspended"]).optional(),
+      impersonating: zod
+        .union([
+          zod.object({
+            targetUserId: zod.string(),
+            targetEmail: zod.string().nullable(),
+          }),
+          zod.null(),
+        ])
+        .optional(),
     }),
     zod.null(),
   ]),
@@ -366,6 +377,130 @@ export const UpdateSettingsResponse = zod.object({
   defaultChatPersonaName: zod.string().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary List all users (admin)
+ */
+export const GetAdminUsersQueryParams = zod.object({
+  page: zod.coerce.number().optional(),
+  pageSize: zod.coerce.number().optional(),
+  search: zod.coerce.string().optional(),
+});
+
+export const GetAdminUsersResponse = zod.object({
+  page: zod.number(),
+  pageSize: zod.number(),
+  total: zod.number(),
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      email: zod.string().nullable(),
+      firstName: zod.string().nullable(),
+      lastName: zod.string().nullable(),
+      role: zod.string(),
+      status: zod.string(),
+      createdAt: zod.coerce.date(),
+      demoCount: zod.number(),
+      lastActivity: zod.union([zod.coerce.date(), zod.null()]),
+    }),
+  ),
+});
+
+/**
+ * @summary List all demos across all users (admin)
+ */
+export const GetAdminDemosQueryParams = zod.object({
+  page: zod.coerce.number().optional(),
+  pageSize: zod.coerce.number().optional(),
+  search: zod.coerce.string().optional(),
+});
+
+export const GetAdminDemosResponse = zod.object({
+  page: zod.number(),
+  pageSize: zod.number(),
+  total: zod.number(),
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      companyName: zod.string(),
+      slug: zod.string(),
+      status: zod.string(),
+      viewCount: zod.number(),
+      callClickCount: zod.number(),
+      calendarClickCount: zod.number(),
+      createdAt: zod.coerce.date(),
+      userId: zod.string(),
+      ownerEmail: zod.string().nullable(),
+    }),
+  ),
+});
+
+export const SuspendUserParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const SuspendUserResponse = zod.object({
+  success: zod.boolean(),
+});
+
+export const ReactivateUserParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ReactivateUserResponse = zod.object({
+  success: zod.boolean(),
+});
+
+export const PromoteUserParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const PromoteUserResponse = zod.object({
+  success: zod.boolean(),
+});
+
+export const DemoteUserParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const DemoteUserResponse = zod.object({
+  success: zod.boolean(),
+});
+
+export const GetAdminAuditLogQueryParams = zod.object({
+  page: zod.coerce.number().optional(),
+  pageSize: zod.coerce.number().optional(),
+});
+
+export const GetAdminAuditLogResponse = zod.object({
+  page: zod.number(),
+  pageSize: zod.number(),
+  total: zod.number(),
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      actorId: zod.string(),
+      actorEmail: zod.string().nullish(),
+      action: zod.string(),
+      targetType: zod.string().nullish(),
+      targetId: zod.string().nullish(),
+      details: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+export const StartImpersonationParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const StartImpersonationResponse = zod.object({
+  success: zod.boolean(),
+});
+
+export const ExitImpersonationResponse = zod.object({
+  success: zod.boolean(),
 });
 
 /**

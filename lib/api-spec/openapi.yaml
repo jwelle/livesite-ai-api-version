@@ -18,6 +18,8 @@ tags:
     description: Agency settings
   - name: public
     description: Public demo pages (unauthenticated)
+  - name: admin
+    description: Admin-only endpoints
 paths:
   /healthz:
     get:
@@ -339,6 +341,122 @@ paths:
         '401':
           description: Unauthorized
 
+  /admin/users:
+    get:
+      tags: [admin]
+      operationId: getAdminUsers
+      summary: List all users (admin)
+      parameters:
+        - { name: page, in: query, required: false, schema: { type: integer } }
+        - { name: pageSize, in: query, required: false, schema: { type: integer } }
+        - { name: search, in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: Paginated list of users
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUsersList' }
+        '403': { description: Forbidden }
+  /admin/demos:
+    get:
+      tags: [admin]
+      operationId: getAdminDemos
+      summary: List all demos across all users (admin)
+      parameters:
+        - { name: page, in: query, required: false, schema: { type: integer } }
+        - { name: pageSize, in: query, required: false, schema: { type: integer } }
+        - { name: search, in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: Paginated list of demos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDemosList' }
+        '403': { description: Forbidden }
+  /admin/users/{id}/suspend:
+    post:
+      tags: [admin]
+      operationId: suspendUser
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: User suspended
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessEnvelope' }
+  /admin/users/{id}/reactivate:
+    post:
+      tags: [admin]
+      operationId: reactivateUser
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: User reactivated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessEnvelope' }
+  /admin/users/{id}/promote:
+    post:
+      tags: [admin]
+      operationId: promoteUser
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: User promoted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessEnvelope' }
+  /admin/users/{id}/demote:
+    post:
+      tags: [admin]
+      operationId: demoteUser
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: User demoted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessEnvelope' }
+  /admin/audit-log:
+    get:
+      tags: [admin]
+      operationId: getAdminAuditLog
+      parameters:
+        - { name: page, in: query, required: false, schema: { type: integer } }
+        - { name: pageSize, in: query, required: false, schema: { type: integer } }
+      responses:
+        '200':
+          description: Paginated audit log
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAuditLogList' }
+  /admin/impersonate/{userId}:
+    post:
+      tags: [admin]
+      operationId: startImpersonation
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Impersonation started
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessEnvelope' }
+  /admin/impersonate/exit:
+    post:
+      tags: [admin]
+      operationId: exitImpersonation
+      responses:
+        '200':
+          description: Impersonation ended
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessEnvelope' }
+
   /public/demo/{slug}:
     get:
       tags: [public]
@@ -481,6 +599,94 @@ components:
           type: [string, 'null']
         profileImageUrl:
           type: [string, 'null']
+        role:
+          type: string
+          enum: [user, admin]
+        status:
+          type: string
+          enum: [active, suspended]
+        impersonating:
+          oneOf:
+            - type: object
+              required: [targetUserId, targetEmail]
+              properties:
+                targetUserId:
+                  type: string
+                targetEmail:
+                  type: [string, 'null']
+            - type: 'null'
+    AdminUserRow:
+      type: object
+      required: [id, email, firstName, lastName, role, status, createdAt, demoCount, lastActivity]
+      properties:
+        id: { type: string }
+        email: { type: [string, 'null'] }
+        firstName: { type: [string, 'null'] }
+        lastName: { type: [string, 'null'] }
+        role: { type: string }
+        status: { type: string }
+        createdAt: { type: string, format: date-time }
+        demoCount: { type: integer }
+        lastActivity:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+    AdminUsersList:
+      type: object
+      required: [page, pageSize, total, items]
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdminUserRow' }
+    AdminDemoRow:
+      type: object
+      required: [id, companyName, slug, status, viewCount, callClickCount, calendarClickCount, createdAt, userId, ownerEmail]
+      properties:
+        id: { type: string }
+        companyName: { type: string }
+        slug: { type: string }
+        status: { type: string }
+        viewCount: { type: integer }
+        callClickCount: { type: integer }
+        calendarClickCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        userId: { type: string }
+        ownerEmail: { type: [string, 'null'] }
+    AdminDemosList:
+      type: object
+      required: [page, pageSize, total, items]
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdminDemoRow' }
+    AdminAuditLogRow:
+      type: object
+      required: [id, actorId, action, createdAt]
+      properties:
+        id: { type: string }
+        actorId: { type: string }
+        actorEmail: { type: [string, 'null'] }
+        action: { type: string }
+        targetType: { type: [string, 'null'] }
+        targetId: { type: [string, 'null'] }
+        details: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+    AdminAuditLogList:
+      type: object
+      required: [page, pageSize, total, items]
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdminAuditLogRow' }
     AuthUserEnvelope:
       type: object
       required: [user]
