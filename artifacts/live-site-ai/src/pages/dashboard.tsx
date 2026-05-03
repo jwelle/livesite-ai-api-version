@@ -1,4 +1,4 @@
-import { useGetDemos, useGetDashboardStats, getGetDemosQueryKey, useDeleteDemo } from "@workspace/api-client-react";
+import { useGetDemos, useGetDashboardStats, getGetDemosQueryKey, useDeleteDemo, useLogDemoCopyEvent } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ export default function Dashboard() {
   const { data: stats, isLoading: isLoadingStats } = useGetDashboardStats();
   const { data: demos, isLoading: isLoadingDemos } = useGetDemos();
   const deleteDemo = useDeleteDemo();
+  const logCopy = useLogDemoCopyEvent();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { impersonating } = useAuth();
@@ -171,6 +172,14 @@ export default function Dashboard() {
                                   return;
                                 }
                                 navigator.clipboard.writeText(prompt);
+                                logCopy.mutate(
+                                  { id: demo.id },
+                                  {
+                                    onSuccess: () => {
+                                      queryClient.invalidateQueries({ queryKey: getGetDemosQueryKey() });
+                                    },
+                                  },
+                                );
                                 toast({ title: "Prompt copied to clipboard" });
                               }}
                             >

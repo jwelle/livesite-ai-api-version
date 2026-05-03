@@ -475,6 +475,10 @@ router.post("/demos/:id/enrich", blockMutateForImpersonation, async (req, res) =
     res.status(400).json({ error: "Voice Agent Goal is required before enrichment." });
     return;
   }
+  const [settings] = await db
+    .select()
+    .from(agencySettingsTable)
+    .where(eq(agencySettingsTable.userId, req.user.id));
   const input: EnrichInput = {
     businessName: demo.companyName,
     websiteUrl: demo.websiteUrl,
@@ -483,6 +487,7 @@ router.post("/demos/:id/enrich", blockMutateForImpersonation, async (req, res) =
     tone: demo.desiredTone,
     primaryCta: demo.primaryCta,
     optionalNotes: demo.optionalNotes,
+    disclaimer: settings?.defaultDisclaimer || null,
   };
   try {
     const result = await runEnrichment(input);
@@ -533,6 +538,11 @@ router.post("/demos/:id/regenerate", blockMutateForImpersonation, async (req, re
     res.status(400).json({ error: "Voice Agent Goal is required before regeneration." });
     return;
   }
+  const [regenSettings] = await db
+    .select()
+    .from(agencySettingsTable)
+    .where(eq(agencySettingsTable.userId, req.user.id));
+  const disclaimer = regenSettings?.defaultDisclaimer || null;
   try {
     let aiGeneratedPrompt: string;
     if (demo.businessProfile && demo.voiceAgentPackage) {
@@ -548,6 +558,7 @@ router.post("/demos/:id/regenerate", blockMutateForImpersonation, async (req, re
           tone: demo.desiredTone,
           primaryCta: demo.primaryCta,
           optionalNotes: demo.optionalNotes,
+          disclaimer,
         },
       );
     } else {
@@ -559,6 +570,7 @@ router.post("/demos/:id/regenerate", blockMutateForImpersonation, async (req, re
         tone: demo.desiredTone,
         primaryCta: demo.primaryCta,
         optionalNotes: demo.optionalNotes,
+        disclaimer,
       };
       const result = await runEnrichment(input);
       aiGeneratedPrompt = result.aiGeneratedPrompt;
@@ -655,12 +667,37 @@ router.post("/demos/:id/push-ghl", blockMutateForImpersonation, async (req, res)
     .from(demosTable)
     .where(and(eq(demosTable.id, params.data.id), eq(demosTable.userId, req.user.id)));
   if (!demo) { res.status(404).json({ error: "Demo not found" }); return; }
-  // V1 placeholder — GHL push API not configured.
-  res.json({
-    success: false,
-    message:
-      "GHL push is not configured yet. You can copy the final prompt and paste it into your voice agent manually.",
-  });
+  // V1 placeholder — GHL push API not configured. When a real push integration
+  // is wired in, set `success` to true on success and the demo status will
+  // advance to `pushed_to_ghl`.
+  const success = false as boolean;
+  const message = success
+    ? "Pushed to GHL."
+    : "GHL push is not configured yet. You can copy the final prompt and paste it into your voice agent manually.";
+  if (success) {
+    await db
+      .update(demosTable)
+      .set({ status: "pushed_to_ghl" })
+      .where(eq(demosTable.id, demo.id));
+  }
+  res.json({ success, message });
+});
+
+router.get("/demos/:id/prompt-versions", async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const id = req.params.id;
+  if (!id || typeof id !== "string") { res.status(400).json({ error: "Invalid ID" }); return; }
+  const [demo] = await db
+    .select({ id: demosTable.id })
+    .from(demosTable)
+    .where(and(eq(demosTable.id, id), eq(demosTable.userId, req.user.id)));
+  if (!demo) { res.status(404).json({ error: "Demo not found" }); return; }
+  const versions = await db
+    .select()
+    .from(promptVersionsTable)
+    .where(eq(promptVersionsTable.demoId, id));
+  versions.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
+  res.json(versions);
 });
 
 export default router;

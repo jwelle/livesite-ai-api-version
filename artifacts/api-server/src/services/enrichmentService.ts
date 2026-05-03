@@ -1,21 +1,50 @@
 import OpenAI from "openai";
+import { z } from "zod";
 
-// Lightweight runtime validator for the OpenAI enrichment response.
-// We intentionally avoid a hard schema rejection because LLM JSON sometimes
-// omits or renames optional fields; validateEnrichmentShape returns true when
-// the top-level structure looks usable, false otherwise. The downstream
-// normalizers (normalizeProfile / normalizePackage) safely coerce missing or
-// malformed fields to defaults.
-function validateEnrichmentShape(value: unknown): value is {
-  businessProfile?: Record<string, unknown>;
-  voiceAgentPackage?: Record<string, unknown>;
-} {
-  if (!value || typeof value !== "object") return false;
-  const v = value as Record<string, unknown>;
-  const profileOk = v.businessProfile === undefined || (typeof v.businessProfile === "object" && v.businessProfile !== null);
-  const packageOk = v.voiceAgentPackage === undefined || (typeof v.voiceAgentPackage === "object" && v.voiceAgentPackage !== null);
-  return profileOk && packageOk;
-}
+const sourceNoteSchema = z.object({
+  title: z.string().optional(),
+  url: z.string().optional(),
+  note: z.string().optional(),
+}).passthrough();
+
+const businessProfileSchema = z.object({
+  businessName: z.string().optional(),
+  websiteUrl: z.string().optional(),
+  industry: z.string().optional(),
+  summary: z.string().optional(),
+  services: z.array(z.string()).optional(),
+  serviceArea: z.string().optional(),
+  phone: z.string().optional(),
+  hours: z.string().optional(),
+  differentiators: z.array(z.string()).optional(),
+  customerTypes: z.array(z.string()).optional(),
+  commonQuestions: z.array(z.string()).optional(),
+  sourceNotes: z.array(sourceNoteSchema).optional(),
+  unknowns: z.array(z.string()).optional(),
+}).passthrough();
+
+const objectionHandlerSchema = z.object({
+  objection: z.string().optional(),
+  response: z.string().optional(),
+}).passthrough();
+
+const voiceAgentPackageSchema = z.object({
+  agentName: z.string().optional(),
+  agentRole: z.string().optional(),
+  tone: z.string().optional(),
+  conversationGoal: z.string().optional(),
+  openingScript: z.string().optional(),
+  qualificationQuestions: z.array(z.string()).optional(),
+  objectionHandlers: z.array(objectionHandlerSchema).optional(),
+  escalationRules: z.array(z.string()).optional(),
+  bookingInstructions: z.string().optional(),
+  complianceBoundaries: z.array(z.string()).optional(),
+}).passthrough();
+
+const enrichmentResponseSchema = z.object({
+  businessProfile: businessProfileSchema,
+  voiceAgentPackage: voiceAgentPackageSchema,
+}).passthrough();
 
 const SYSTEM_INSTRUCTION = `You are an expert AI voice-agent architect for local businesses, sales teams, and marketing agencies.
 
@@ -72,6 +101,7 @@ export interface EnrichInput {
   tone?: string | null;
   primaryCta?: string | null;
   optionalNotes?: string | null;
+  disclaimer?: string | null;
 }
 
 export interface BusinessProfile {
@@ -366,7 +396,7 @@ Do not:
 - Pressure the caller.
 - Continue if the caller asks to speak with a person.
 
-${pkg.complianceBoundaries.length > 0 ? `Additional compliance notes:\n${list(pkg.complianceBoundaries)}\n\n` : ""}## Final Conversation Style
+${pkg.complianceBoundaries.length > 0 ? `Additional compliance notes:\n${list(pkg.complianceBoundaries)}\n\n` : ""}${input.disclaimer ? `Mandatory disclaimer:\n${input.disclaimer}\n\n` : ""}## Final Conversation Style
 
 Keep responses brief and human-sounding.
 
@@ -431,12 +461,14 @@ export async function runEnrichment(input: EnrichInput): Promise<EnrichmentResul
     );
   }
 
-  if (!validateEnrichmentShape(parsed)) {
-    throw new Error("OpenAI returned an unexpected response shape");
+  const validated = enrichmentResponseSchema.safeParse(parsed);
+  if (!validated.success) {
+    throw new Error(
+      `OpenAI returned an unexpected response shape: ${validated.error.issues.map((i) => i.path.join(".") + " " + i.message).slice(0, 3).join("; ")}`,
+    );
   }
-  const root = parsed as { businessProfile?: unknown; voiceAgentPackage?: unknown };
-  const profile = normalizeProfile(root.businessProfile, input);
-  const pkg = normalizePackage(root.voiceAgentPackage, input);
+  const profile = normalizeProfile(validated.data.businessProfile, input);
+  const pkg = normalizePackage(validated.data.voiceAgentPackage, input);
   const aiGeneratedPrompt = buildFinalPrompt(profile, pkg, input);
   const limitedResults =
     profile.sourceNotes.length === 0 ||

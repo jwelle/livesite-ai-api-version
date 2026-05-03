@@ -403,6 +403,25 @@ paths:
         '404': { description: Not found }
         '401': { description: Unauthorized }
 
+  /demos/{id}/prompt-versions:
+    get:
+      tags: [demos]
+      operationId: getDemoPromptVersions
+      summary: List saved prompt versions for a demo (newest first)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: List of prompt versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PromptVersion'
+        '404': { description: Not found }
+        '401': { description: Unauthorized }
+
   /demos/{id}/push-ghl:
     post:
       tags: [demos]
@@ -1179,6 +1198,17 @@ components:
       properties:
         success: { type: boolean }
         message: { type: string }
+
+    PromptVersion:
+      type: object
+      required: [id, demoId, type, promptText, createdAt]
+      properties:
+        id: { type: string }
+        demoId: { type: string }
+        type: { type: string, description: "ai_generated | regenerated | manual_save" }
+        promptText: { type: string }
+        notes: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
 
     OpenAIStatus:
       type: object

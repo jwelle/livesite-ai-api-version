@@ -192,7 +192,7 @@ importers:
         version: 1.19.0
       openai:
         specifier: ^6.35.0
-        version: 6.35.0(zod@4.3.6)
+        version: 6.35.0(zod@3.25.76)
       openid-client:
         specifier: ^6.8.4
         version: 6.8.4
@@ -202,6 +202,9 @@ importers:
       pino-http:
         specifier: ^10
         version: 10.5.0
+      zod:
+        specifier: 'catalog:'
+        version: 3.25.76
     devDependencies:
       '@types/cookie-parser':
         specifier: ^1.4.10
@@ -5196,9 +5199,9 @@ snapshots:
     dependencies:
       wrappy: 1.0.2
 
-  openai@6.35.0(zod@4.3.6):
+  openai@6.35.0(zod@3.25.76):
     optionalDependencies:
-      zod: 4.3.6
+      zod: 3.25.76
 
   openid-client@6.8.4:
     dependencies:

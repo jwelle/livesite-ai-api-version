@@ -433,6 +433,16 @@ export interface PushGhlResult {
   message: string;
 }
 
+export interface PromptVersion {
+  id: string;
+  demoId: string;
+  /** ai_generated | regenerated | manual_save */
+  type: string;
+  promptText: string;
+  notes?: string | null;
+  createdAt: string;
+}
+
 export interface OpenAIStatus {
   configured: boolean;
 }

@@ -39,6 +39,7 @@ import type {
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
   OpenAIStatus,
+  PromptVersion,
   PublicDemo,
   PushGhlResult,
   SuccessEnvelope,
@@ -1643,6 +1644,94 @@ export const useExportDemoJson = <
 > => {
   return useMutation(getExportDemoJsonMutationOptions(options));
 };
+
+/**
+ * @summary List saved prompt versions for a demo (newest first)
+ */
+export const getGetDemoPromptVersionsUrl = (id: string) => {
+  return `/api/demos/${id}/prompt-versions`;
+};
+
+export const getDemoPromptVersions = async (
+  id: string,
+  options?: RequestInit,
+): Promise<PromptVersion[]> => {
+  return customFetch<PromptVersion[]>(getGetDemoPromptVersionsUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDemoPromptVersionsQueryKey = (id: string) => {
+  return [`/api/demos/${id}/prompt-versions`] as const;
+};
+
+export const getGetDemoPromptVersionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDemoPromptVersions>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDemoPromptVersions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetDemoPromptVersionsQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getDemoPromptVersions>>
+  > = ({ signal }) => getDemoPromptVersions(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDemoPromptVersions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDemoPromptVersionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDemoPromptVersions>>
+>;
+export type GetDemoPromptVersionsQueryError = ErrorType<void>;
+
+/**
+ * @summary List saved prompt versions for a demo (newest first)
+ */
+
+export function useGetDemoPromptVersions<
+  TData = Awaited<ReturnType<typeof getDemoPromptVersions>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDemoPromptVersions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDemoPromptVersionsQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Placeholder GHL push

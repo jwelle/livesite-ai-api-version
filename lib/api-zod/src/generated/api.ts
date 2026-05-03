@@ -1065,6 +1065,25 @@ export const ExportDemoJsonParams = zod.object({
 export const ExportDemoJsonResponse = zod.object({}).passthrough();
 
 /**
+ * @summary List saved prompt versions for a demo (newest first)
+ */
+export const GetDemoPromptVersionsParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetDemoPromptVersionsResponseItem = zod.object({
+  id: zod.string(),
+  demoId: zod.string(),
+  type: zod.string().describe("ai_generated | regenerated | manual_save"),
+  promptText: zod.string(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const GetDemoPromptVersionsResponse = zod.array(
+  GetDemoPromptVersionsResponseItem,
+);
+
+/**
  * @summary Placeholder GHL push
  */
 export const PushDemoToGhlParams = zod.object({

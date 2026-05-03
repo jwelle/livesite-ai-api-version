@@ -1,4 +1,4 @@
-import { useGetSettings, useUpdateSettings, getGetSettingsQueryKey } from "@workspace/api-client-react";
+import { useGetSettings, useUpdateSettings, useGetOpenAIStatus, getGetSettingsQueryKey } from "@workspace/api-client-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Save, Info } from "lucide-react";
+import { Loader2, Save, Info, CheckCircle2, XCircle } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -35,6 +35,7 @@ export default function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: settings, isLoading } = useGetSettings();
+  const { data: openaiStatus } = useGetOpenAIStatus();
   const updateSettings = useUpdateSettings();
 
   const form = useForm<SettingsValues>({
@@ -98,6 +99,23 @@ export default function Settings() {
         <h1 className="text-3xl font-bold tracking-tight">Agency Settings</h1>
         <p className="text-muted-foreground mt-1">Manage your agency profile and default AI configurations.</p>
       </div>
+
+      <Alert
+        className={
+          openaiStatus?.configured
+            ? "mb-4 bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+            : "mb-4 bg-destructive/10 border-destructive/30 text-destructive"
+        }
+        data-testid="alert-openai-status"
+      >
+        {openaiStatus?.configured ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+        <AlertTitle>OpenAI: {openaiStatus?.configured ? "Connected" : "Not configured"}</AlertTitle>
+        <AlertDescription>
+          {openaiStatus?.configured
+            ? "AI enrichment with web search is available for your demos."
+            : "OPENAI_API_KEY is not set on the server. Ask an admin to add it before running AI enrichment."}
+        </AlertDescription>
+      </Alert>
 
       <Alert className="mb-8 bg-primary/10 border-primary/20 text-primary">
         <Info className="h-4 w-4" />

@@ -8,6 +8,7 @@ import {
   useLogDemoCopyEvent,
   usePushDemoToGhl,
   useGetOpenAIStatus,
+  useGetDemoPromptVersions,
   getGetDemoQueryKey,
   getGetDemosQueryKey,
 } from "@workspace/api-client-react";
@@ -54,6 +55,7 @@ export default function DemoDetail() {
     query: { enabled: !!id, queryKey: getGetDemoQueryKey(id as string) }
   });
   const { data: openaiStatus } = useGetOpenAIStatus();
+  const { data: promptVersions } = useGetDemoPromptVersions(id as string);
 
   const deleteDemo = useDeleteDemo();
   const regenerateSlug = useRegenerateDemoSlug();
@@ -274,6 +276,7 @@ export default function DemoDetail() {
               <TabsTrigger value="profile" data-testid="tab-profile">Business Profile</TabsTrigger>
               <TabsTrigger value="package" data-testid="tab-package">Agent Package</TabsTrigger>
               <TabsTrigger value="config" data-testid="tab-config">Demo Config</TabsTrigger>
+              <TabsTrigger value="history" data-testid="tab-history">History</TabsTrigger>
             </TabsList>
 
             <TabsContent value="prompt" className="mt-4">
@@ -417,6 +420,47 @@ export default function DemoDetail() {
                   <Info label="Chat Persona" value={demo.chatPersonaName} />
                   <Info label="Calendar Link" value={demo.ctaCalendarLink} className="sm:col-span-2" />
                   <Info label="Created" value={demo.createdAt ? format(new Date(demo.createdAt), "PPpp") : null} className="sm:col-span-2" />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="history" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Prompt Version History</CardTitle>
+                  <CardDescription>Each AI generation, regeneration, and manual save is recorded here. Use this to recover an earlier prompt.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {(!promptVersions || promptVersions.length === 0) && (
+                    <p className="text-sm text-muted-foreground">No prompt versions yet. Run AI enrichment to create the first one.</p>
+                  )}
+                  {promptVersions && promptVersions.map((v) => (
+                    <div key={v.id} className="rounded-md border p-3 space-y-2" data-testid={`prompt-version-${v.id}`}>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span className="font-mono uppercase">{v.type}</span>
+                        <span>{v.createdAt ? format(new Date(v.createdAt), "PPp") : ""}</span>
+                      </div>
+                      {v.notes && <p className="text-xs italic text-muted-foreground">{v.notes}</p>}
+                      <Textarea readOnly value={v.promptText} rows={6} className="font-mono text-xs" />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          data-testid={`btn-restore-${v.id}`}
+                          onClick={() => { setWorkingPrompt(v.promptText); setDirty(true); toast({ title: "Loaded into editor — click Save Working Prompt to keep it." }); }}
+                        >
+                          Load into editor
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => { navigator.clipboard.writeText(v.promptText); toast({ title: "Version copied to clipboard" }); }}
+                        >
+                          <Copy className="mr-2 h-4 w-4" /> Copy
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
             </TabsContent>

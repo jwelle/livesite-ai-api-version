@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useLocation, useParams, Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,9 +7,9 @@ import {
   useCreateDemo,
   useUpdateDemo,
   useGetDemo,
-  useEnrichBusiness,
   useEnrichDemo,
   useGetOpenAIStatus,
+  useGetSettings,
   getGetDemoQueryKey,
   getGetDemosQueryKey,
 } from "@workspace/api-client-react";
@@ -59,16 +59,15 @@ export default function DemoForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [enrichPreview, setEnrichPreview] = useState<{ summary?: string; services?: string[]; serviceArea?: string; phone?: string; hours?: string; sources?: number; limited?: boolean } | null>(null);
 
   const { data: openaiStatus } = useGetOpenAIStatus();
+  const { data: settings } = useGetSettings();
   const { data: demo, isLoading: isLoadingDemo } = useGetDemo(id as string, {
     query: { enabled: isEdit, queryKey: getGetDemoQueryKey(id as string) }
   });
 
   const createDemo = useCreateDemo();
   const updateDemo = useUpdateDemo();
-  const enrichBusiness = useEnrichBusiness();
   const enrichDemo = useEnrichDemo();
 
   const form = useForm<FormValues>({
@@ -82,6 +81,23 @@ export default function DemoForm() {
       status: "draft",
     },
   });
+
+  // For NEW demos, prefill editable fields from agency-wide defaults so the
+  // user can see (and override) the values that will be applied at create time.
+  useEffect(() => {
+    if (!isEdit && settings) {
+      const current = form.getValues();
+      const next: Partial<FormValues> = {};
+      if (!current.desiredTone && settings.defaultTone) next.desiredTone = settings.defaultTone;
+      if (!current.primaryCta && settings.defaultPrimaryCta) next.primaryCta = settings.defaultPrimaryCta;
+      if (!current.voicePersonaName && settings.defaultVoicePersonaName) next.voicePersonaName = settings.defaultVoicePersonaName;
+      if (!current.voiceAiPhoneNumber && settings.defaultVoiceAiPhone) next.voiceAiPhoneNumber = settings.defaultVoiceAiPhone;
+      if (!current.ctaCalendarLink && settings.defaultCalendarLink) next.ctaCalendarLink = settings.defaultCalendarLink;
+      if (!current.chatPersonaName && settings.defaultChatPersonaName) next.chatPersonaName = settings.defaultChatPersonaName;
+      if (!current.chatWidgetId && settings.defaultGhlWidgetId) next.chatWidgetId = settings.defaultGhlWidgetId;
+      if (Object.keys(next).length > 0) form.reset({ ...current, ...next });
+    }
+  }, [settings, isEdit, form]);
 
   useEffect(() => {
     if (demo && isEdit) {
@@ -123,7 +139,6 @@ export default function DemoForm() {
       toast({ title: "Voice Agent Goal is required to enrich.", variant: "destructive" });
       return;
     }
-    setEnrichPreview(null);
 
     const runEnrich = (demoId: string) => {
       enrichDemo.mutate({ id: demoId }, {
@@ -157,12 +172,6 @@ export default function DemoForm() {
       });
     }
   };
-
-  // Suppress unused vars; the lightweight preview path is no longer used after
-  // enrichment was changed to persist + navigate.
-  void enrichBusiness;
-  void enrichPreview;
-  void setEnrichPreview;
 
   const onSubmit = (values: FormValues) => {
     if (isEdit) {
