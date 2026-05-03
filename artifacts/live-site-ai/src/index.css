@@ -61,23 +61,23 @@
 }
 
 :root {
-  --button-outline: rgba(255,255,255, .10);
-  --badge-outline: rgba(255,255,255, .05);
+  --button-outline: rgba(0,0,0, .08);
+  --badge-outline: rgba(0,0,0, .06);
   --opaque-button-border-intensity: 9;
-  --elevate-1: rgba(255,255,255, .04);
-  --elevate-2: rgba(255,255,255, .09);
+  --elevate-1: rgba(0,0,0, .04);
+  --elevate-2: rgba(0,0,0, .07);
 
-  /* Force dark mode colors as default for this modern SaaS feel */
-  --background: 222.2 47.4% 11.2%; /* #0f172a */
-  --foreground: 210 40% 98%; /* #f8fafc */
-  
-  --card: 215 27.9% 16.9%; /* #1e293b */
-  --card-foreground: 210 40% 98%;
-  --card-border: 215 25% 26.7%; /* #334155 */
+  /* Light theme — clean shadcn/Tailwind defaults */
+  --background: 0 0% 100%; /* #ffffff */
+  --foreground: 222.2 47.4% 11.2%; /* slate-900 */
 
-  --popover: 215 27.9% 16.9%;
-  --popover-foreground: 210 40% 98%;
-  --popover-border: 215 25% 26.7%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 47.4% 11.2%;
+  --card-border: 214.3 31.8% 91.4%; /* slate-200 */
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 47.4% 11.2%;
+  --popover-border: 214.3 31.8% 91.4%;
 
   --primary: 221.2 83.2% 53.3%; /* #2563eb */
   --primary-foreground: 210 40% 98%;
@@ -85,26 +85,26 @@
   --secondary: 262.1 83.3% 57.8%; /* #7c3aed */
   --secondary-foreground: 210 40% 98%;
 
-  --muted: 215 27.9% 16.9%;
-  --muted-foreground: 215 16.3% 46.9%; /* #94a3b8 */
+  --muted: 210 40% 96.1%; /* slate-100 */
+  --muted-foreground: 215.4 16.3% 46.9%; /* slate-500 */
 
-  --accent: 215 27.9% 16.9%;
-  --accent-foreground: 210 40% 98%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
 
-  --destructive: 0 62.8% 30.6%;
+  --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
 
-  --border: 215 25% 26.7%; /* #334155 */
-  --input: 215 25% 26.7%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
   --ring: 221.2 83.2% 53.3%;
 
-  --sidebar: 222.2 47.4% 11.2%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-border: 215 25% 26.7%;
+  --sidebar: 210 40% 98%; /* slate-50 */
+  --sidebar-foreground: 222.2 47.4% 11.2%;
+  --sidebar-border: 214.3 31.8% 91.4%;
   --sidebar-primary: 221.2 83.2% 53.3%;
   --sidebar-primary-foreground: 210 40% 98%;
-  --sidebar-accent: 215 27.9% 16.9%;
-  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-accent: 210 40% 96.1%;
+  --sidebar-accent-foreground: 222.2 47.4% 11.2%;
   --sidebar-ring: 221.2 83.2% 53.3%;
 
   --app-font-sans: 'Inter', sans-serif;
@@ -122,7 +122,11 @@
 }
 
 .dark {
-  /* Use the exact same dark theme variables for .dark */
+  --button-outline: rgba(255,255,255, .10);
+  --badge-outline: rgba(255,255,255, .05);
+  --elevate-1: rgba(255,255,255, .04);
+  --elevate-2: rgba(255,255,255, .09);
+
   --background: 222.2 47.4% 11.2%;
   --foreground: 210 40% 98%;
   --card: 215 27.9% 16.9%;
