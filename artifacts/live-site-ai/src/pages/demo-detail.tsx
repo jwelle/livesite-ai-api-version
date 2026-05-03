@@ -112,6 +112,12 @@ export default function DemoDetail() {
   };
 
   const handleEnrich = () => {
+    if ((demo.currentWorkingPrompt ?? "").trim().length > 0) {
+      const ok = window.confirm(
+        "Re-running enrichment will overwrite your current working prompt with a fresh AI-generated one. Continue?\n\nTip: use Regenerate (in the Prompt tab) if you'd rather save the new version separately.",
+      );
+      if (!ok) return;
+    }
     enrichDemo.mutate({ id: demo.id }, {
       onSuccess: () => { toast({ title: "Enrichment complete" }); invalidate(); },
       onError: () => toast({ title: "Enrichment failed", variant: "destructive" }),
