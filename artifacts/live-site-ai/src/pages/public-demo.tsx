@@ -2,9 +2,8 @@ import { useGetPublicDemo, useTrackDemoView, useTrackDemoCallClick, useTrackDemo
 import { useParams } from "wouter";
 import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Bot, Phone, Calendar, ExternalLink, ShieldAlert, Globe } from "lucide-react";
+import { Phone, Calendar, ExternalLink, ShieldAlert, Globe } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { motion } from "framer-motion";
 
 export default function PublicDemo() {
   const { slug } = useParams();
@@ -103,15 +102,14 @@ export default function PublicDemo() {
       </div>
 
       {/* Main Area */}
-      <div className="flex-1 relative bg-muted/20">
+      <div className="flex-1 relative bg-white">
         {!iframeFailed ? (
-          <iframe 
-            src={demo.websiteUrl} 
-            className="w-full h-full border-none"
+          <iframe
+            src={demo.websiteUrl}
+            className="absolute inset-0 w-full h-full border-none block"
             onError={() => setIframeFailed(true)}
-            // Sandbox needs allow-scripts allow-same-origin at least for many sites
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             title={`${demo.companyName} Website`}
+            allow="autoplay; fullscreen; clipboard-write"
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center p-4">
@@ -129,41 +127,6 @@ export default function PublicDemo() {
             </div>
           </div>
         )}
-
-        {/* Floating Card */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ delay: 0.5, duration: 0.4 }}
-          className="absolute bottom-6 right-6 sm:bottom-24 sm:right-8 w-80 bg-card rounded-xl shadow-2xl border border-border/50 overflow-hidden z-[40]"
-        >
-          <div className="bg-primary/10 border-b border-primary/10 p-4 flex items-center gap-3">
-            <div className="bg-primary p-2 rounded-lg">
-              <Bot className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div>
-              <div className="font-semibold text-primary">{demo.chatPersonaName || "AI Assistant"} Demo</div>
-              <div className="text-xs text-muted-foreground">Live integration active</div>
-            </div>
-          </div>
-          <div className="p-5 space-y-4">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {demo.customDemoMessage || `Experience how an AI assistant can transform customer engagement for ${demo.companyName}.`}
-            </p>
-            <div className="space-y-2 pt-2">
-              {demo.voiceAiPhoneNumber && (
-                <Button className="w-full bg-secondary hover:bg-secondary/90 text-white" onClick={handleCallClick} data-testid="btn-float-call">
-                  <Phone className="mr-2 h-4 w-4" /> Test Voice AI
-                </Button>
-              )}
-              {demo.ctaCalendarLink && (
-                <Button variant="outline" className="w-full border-border/50" onClick={handleCalendarClick} data-testid="btn-float-book">
-                  <Calendar className="mr-2 h-4 w-4" /> Discuss Implementation
-                </Button>
-              )}
-            </div>
-          </div>
-        </motion.div>
       </div>
     </div>
   );
