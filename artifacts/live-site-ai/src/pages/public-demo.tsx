@@ -54,12 +54,12 @@ export default function PublicDemo() {
   }, [demo?.resolvedChatWidgetId]);
 
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-background"><Spinner className="h-8 w-8 text-primary" /></div>;
+    return <div className="dark min-h-screen flex items-center justify-center bg-background"><Spinner className="h-8 w-8 text-primary" /></div>;
   }
 
   if (!demo || demo.status !== "active") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4 text-center">
+      <div className="dark min-h-screen flex items-center justify-center bg-background p-4 text-center">
         <div className="max-w-md space-y-4">
           <ShieldAlert className="h-12 w-12 text-muted-foreground mx-auto" />
           <h1 className="text-2xl font-bold">Demo Unavailable</h1>
@@ -89,7 +89,7 @@ export default function PublicDemo() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground overflow-hidden">
+    <div className="dark min-h-screen flex flex-col bg-background text-foreground overflow-hidden">
       {/* Top Bar */}
       <div className="h-14 bg-card border-b border-border flex items-center justify-between px-4 z-50 shadow-sm shrink-0">
         <div className="flex items-center gap-3">
