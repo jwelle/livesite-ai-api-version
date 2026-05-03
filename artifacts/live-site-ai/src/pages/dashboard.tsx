@@ -1,4 +1,4 @@
-import { useGetDemos, useGetDashboardStats, getGetDemosQueryKey, useDeleteDemo, useLogDemoCopyEvent } from "@workspace/api-client-react";
+import { useGetDemos, useGetDashboardStats, getGetDemosQueryKey, useDeleteDemo, useLogDemoCopyEvent, useGetMyUsage } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,12 @@ export default function Dashboard() {
   const logCopy = useLogDemoCopyEvent();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { impersonating } = useAuth();
+  const { impersonating, tier, isAdmin } = useAuth();
+  const { data: usage } = useGetMyUsage();
+  const isFreeAtDemoCap =
+    !isAdmin && tier === "free" && (usage?.demosCreated ?? 0) >= (usage?.demoLimit ?? 1);
+  const isAtEnrichmentCap =
+    !isAdmin && (usage?.enrichmentsToday ?? 0) >= (usage?.dailyEnrichmentLimit ?? 25);
 
   const handleDelete = (id: string) => {
     if (impersonating) {
@@ -52,13 +57,51 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground mt-1">Overview of your AI demos and engagement metrics.</p>
         </div>
-        <Link href="/demos/new">
-          <Button data-testid="btn-create-demo-header">
-            <Plus className="mr-2 h-4 w-4" />
-            Create Demo
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          {usage && !isAdmin && (
+            <div
+              className="text-xs text-muted-foreground rounded-md border px-3 py-2 bg-muted/40"
+              data-testid="usage-badge"
+            >
+              <div>
+                <span className="font-medium text-foreground">{usage.tier === "pro" ? "Pro" : "Free"}</span>
+                {" · "}
+                Demos: {usage.demosCreated}
+                {usage.tier === "free" ? `/${usage.demoLimit}` : ""}
+              </div>
+              <div>
+                Enrichments today: {usage.enrichmentsToday}/{usage.dailyEnrichmentLimit}
+              </div>
+            </div>
+          )}
+          {isFreeAtDemoCap ? (
+            <Button
+              disabled
+              title="Free tier is limited to 1 demo. Ask an admin to upgrade your account."
+              data-testid="btn-create-demo-header"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Create Demo
+            </Button>
+          ) : (
+            <Link href="/demos/new">
+              <Button data-testid="btn-create-demo-header">
+                <Plus className="mr-2 h-4 w-4" />
+                Create Demo
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
+      {isAtEnrichmentCap && (
+        <div
+          className="mb-6 rounded-md border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-900 dark:text-yellow-200"
+          data-testid="enrichment-cap-warning"
+        >
+          You've reached today's enrichment limit ({usage?.dailyEnrichmentLimit}). The
+          counter resets at midnight UTC.
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-8">
         <MetricCard title="Total Demos" value={stats?.totalDemos} icon={<Globe className="h-4 w-4 text-muted-foreground" />} isLoading={isLoadingStats} />
@@ -82,9 +125,15 @@ export default function Dashboard() {
               <Globe className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
               <h3 className="text-lg font-medium">No demos yet</h3>
               <p className="text-muted-foreground mb-4 mt-1">Create your first AI demo to get started.</p>
-              <Link href="/demos/new">
-                <Button variant="outline" data-testid="btn-create-demo-empty">Create Demo</Button>
-              </Link>
+              {isFreeAtDemoCap ? (
+                <Button variant="outline" disabled data-testid="btn-create-demo-empty">
+                  Create Demo (limit reached)
+                </Button>
+              ) : (
+                <Link href="/demos/new">
+                  <Button variant="outline" data-testid="btn-create-demo-empty">Create Demo</Button>
+                </Link>
+              )}
             </div>
           ) : (
             <div className="rounded-md border">

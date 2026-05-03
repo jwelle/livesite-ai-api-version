@@ -34,7 +34,8 @@ export const GetCurrentAuthUserResponse = zod.object({
       lastName: zod.string().nullable(),
       profileImageUrl: zod.string().nullable(),
       role: zod.enum(["user", "admin"]).optional(),
-      status: zod.enum(["active", "suspended"]).optional(),
+      status: zod.enum(["active", "suspended", "pending_approval"]).optional(),
+      tier: zod.enum(["free", "pro"]).optional(),
       impersonating: zod
         .union([
           zod.object({
@@ -1187,12 +1188,26 @@ export const UpdateSettingsResponse = zod.object({
 });
 
 /**
+ * @summary Current user's quota / usage snapshot
+ */
+export const GetMyUsageResponse = zod.object({
+  tier: zod.enum(["free", "pro"]),
+  demosCreated: zod.number(),
+  demoLimit: zod.union([zod.number(), zod.null()]),
+  enrichmentsToday: zod.number(),
+  dailyEnrichmentLimit: zod.union([zod.number(), zod.null()]),
+  status: zod.enum(["active", "suspended", "pending_approval"]),
+  usageDate: zod.string().optional(),
+});
+
+/**
  * @summary List all users (admin)
  */
 export const GetAdminUsersQueryParams = zod.object({
   page: zod.coerce.number().optional(),
   pageSize: zod.coerce.number().optional(),
   search: zod.coerce.string().optional(),
+  status: zod.enum(["pending_approval", "active", "suspended"]).optional(),
 });
 
 export const GetAdminUsersResponse = zod.object({
@@ -1207,11 +1222,128 @@ export const GetAdminUsersResponse = zod.object({
       lastName: zod.string().nullable(),
       role: zod.string(),
       status: zod.string(),
+      tier: zod.enum(["free", "pro"]),
       createdAt: zod.coerce.date(),
       demoCount: zod.number(),
+      demosCreated: zod.number(),
+      enrichmentsToday: zod.number(),
+      totalEnrichments: zod.number(),
       lastActivity: zod.union([zod.coerce.date(), zod.null()]),
+      lastLoginAt: zod.union([zod.coerce.date(), zod.null()]),
     }),
   ),
+});
+
+/**
+ * @summary Manually create or upsert a user by email (admin)
+ */
+export const ManualCreateUserBody = zod.object({
+  email: zod.string().email(),
+  tier: zod.enum(["free", "pro"]).optional(),
+  role: zod.enum(["user", "admin"]).optional(),
+  firstName: zod.string().nullish(),
+  lastName: zod.string().nullish(),
+});
+
+export const ManualCreateUserResponse = zod.object({
+  user: zod.object({
+    id: zod.string(),
+    email: zod.string().nullable(),
+    firstName: zod.string().nullable(),
+    lastName: zod.string().nullable(),
+    role: zod.string(),
+    status: zod.string(),
+    tier: zod.enum(["free", "pro"]),
+    createdAt: zod.coerce.date(),
+    demoCount: zod.number(),
+    demosCreated: zod.number(),
+    enrichmentsToday: zod.number(),
+    totalEnrichments: zod.number(),
+    lastActivity: zod.union([zod.coerce.date(), zod.null()]),
+    lastLoginAt: zod.union([zod.coerce.date(), zod.null()]),
+  }),
+  created: zod.boolean(),
+});
+
+export const ApproveUserParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ApproveUserResponse = zod.object({
+  success: zod.boolean(),
+});
+
+export const RejectUserParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const RejectUserResponse = zod.object({
+  success: zod.boolean(),
+});
+
+export const SetUserTierParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const SetUserTierBody = zod.object({
+  tier: zod.enum(["free", "pro"]),
+});
+
+export const SetUserTierResponse = zod.object({
+  success: zod.boolean(),
+});
+
+export const SetUserRoleParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const SetUserRoleBody = zod.object({
+  role: zod.enum(["user", "admin"]),
+});
+
+export const SetUserRoleResponse = zod.object({
+  success: zod.boolean(),
+});
+
+export const ListInvitesQueryParams = zod.object({
+  page: zod.coerce.number().optional(),
+  pageSize: zod.coerce.number().optional(),
+});
+
+export const ListInvitesResponse = zod.object({
+  page: zod.number(),
+  pageSize: zod.number(),
+  total: zod.number(),
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      token: zod.string(),
+      tier: zod.enum(["free", "pro"]),
+      invitedEmail: zod.string().nullish(),
+      note: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+      expiresAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+      consumedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+      consumedByUserId: zod.string().nullish(),
+      revokedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+      createdBy: zod.string(),
+    }),
+  ),
+});
+
+export const CreateInviteBody = zod.object({
+  tier: zod.enum(["free", "pro"]),
+  invitedEmail: zod.string().nullish(),
+  expiresInDays: zod.number().nullish(),
+  note: zod.string().nullish(),
+});
+
+export const RevokeInviteParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const RevokeInviteResponse = zod.object({
+  success: zod.boolean(),
 });
 
 /**
@@ -1256,22 +1388,6 @@ export const ReactivateUserParams = zod.object({
 });
 
 export const ReactivateUserResponse = zod.object({
-  success: zod.boolean(),
-});
-
-export const PromoteUserParams = zod.object({
-  id: zod.coerce.string(),
-});
-
-export const PromoteUserResponse = zod.object({
-  success: zod.boolean(),
-});
-
-export const DemoteUserParams = zod.object({
-  id: zod.coerce.string(),
-});
-
-export const DemoteUserResponse = zod.object({
   success: zod.boolean(),
 });
 

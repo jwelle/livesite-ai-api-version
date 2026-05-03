@@ -1,4 +1,5 @@
 import { db, adminAuditLogTable } from "@workspace/db";
+import { config } from "../lib/config";
 
 export async function logAdminAction(params: {
   actorId: string;
@@ -18,15 +19,11 @@ export async function logAdminAction(params: {
   });
 }
 
-export function getAdminEmails(): string[] {
-  const raw = process.env.ADMIN_EMAILS ?? "";
-  return raw
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter((s) => s.length > 0);
+export function getInitialAdminEmails(): string[] {
+  return config.initialAdminEmails;
 }
 
 export function isBootstrapAdmin(email: string | null | undefined): boolean {
   if (!email) return false;
-  return getAdminEmails().includes(email.toLowerCase());
+  return getInitialAdminEmails().includes(email.toLowerCase());
 }

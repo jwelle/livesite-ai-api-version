@@ -12,12 +12,15 @@ import {
   type SessionData,
   type ImpersonationData,
 } from "../lib/auth";
+import { sendError } from "../lib/errors";
+import { touchLastLogin } from "../services/usageService";
 
 declare global {
   namespace Express {
-    interface User extends Omit<AuthUser, "role" | "status" | "impersonating"> {
+    interface User extends Omit<AuthUser, "role" | "status" | "tier" | "impersonating"> {
       role?: string;
       status?: string;
+      tier?: string;
     }
 
     interface Request {
@@ -63,6 +66,19 @@ async function refreshIfExpired(
   }
 }
 
+// Throttle last_login_at writes per process to avoid hammering on every API call.
+const lastLoginTouchedAt = new Map<string, number>();
+const LOGIN_TOUCH_INTERVAL_MS = 5 * 60 * 1000;
+function maybeTouchLogin(userId: string): void {
+  const now = Date.now();
+  const prev = lastLoginTouchedAt.get(userId) ?? 0;
+  if (now - prev < LOGIN_TOUCH_INTERVAL_MS) return;
+  lastLoginTouchedAt.set(userId, now);
+  void touchLastLogin(userId).catch(() => {
+    /* swallow */
+  });
+}
+
 export async function authMiddleware(
   req: Request,
   res: Response,
@@ -92,7 +108,7 @@ export async function authMiddleware(
     return;
   }
 
-  // Load fresh role/status for the real user
+  // Load fresh role/status/tier for the real user.
   const [realDbUser] = await db
     .select()
     .from(usersTable)
@@ -104,11 +120,16 @@ export async function authMiddleware(
     return;
   }
 
+  // Suspended users have their session destroyed at the middleware layer so
+  // no API surface is reachable. Pending users keep a valid session — route
+  // guards will gate which endpoints they can reach.
   if (realDbUser.status === "suspended") {
     await clearSession(res, sid);
-    res.status(403).json({ error: "Account suspended" });
+    sendError(res, "ACCOUNT_SUSPENDED");
     return;
   }
+
+  maybeTouchLogin(realDbUser.id);
 
   const realUser: Express.User = {
     id: realDbUser.id,
@@ -118,13 +139,14 @@ export async function authMiddleware(
     profileImageUrl: realDbUser.profileImageUrl,
     role: realDbUser.role,
     status: realDbUser.status,
+    tier: realDbUser.tier,
   };
 
   req.realUser = realUser;
   req.sessionId = sid;
   req.sessionData = refreshed;
 
-  // Apply impersonation if present and the real user is an admin
+  // Apply impersonation if present and the real user is an admin.
   if (refreshed.impersonation && realDbUser.role === "admin") {
     const [target] = await db
       .select()
@@ -139,6 +161,7 @@ export async function authMiddleware(
         profileImageUrl: target.profileImageUrl,
         role: target.role,
         status: target.status,
+        tier: target.tier,
       };
       req.impersonation = refreshed.impersonation;
       next();
@@ -156,7 +179,40 @@ export function requireAdmin(
   next: NextFunction,
 ) {
   if (!req.realUser || req.realUser.role !== "admin") {
-    res.status(403).json({ error: "Admin access required" });
+    sendError(res, "ADMIN_REQUIRED");
+    return;
+  }
+  next();
+}
+
+/**
+ * For routes that should only be reachable by users whose account is fully
+ * approved. Admins (real or via impersonation of an active user) are always
+ * considered active. Pending users are blocked with a structured error so the
+ * client can render a "waiting for approval" screen.
+ */
+export function requireActiveUser(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "UNAUTHORIZED", message: "Unauthorized" });
+    return;
+  }
+  // Admins can always act, even if the impersonated target is pending (the
+  // impersonation guard prevents mutations separately).
+  if (req.realUser?.role === "admin") {
+    next();
+    return;
+  }
+  const status = req.user?.status ?? "pending_approval";
+  if (status === "pending_approval") {
+    sendError(res, "ACCOUNT_PENDING_APPROVAL");
+    return;
+  }
+  if (status === "suspended") {
+    sendError(res, "ACCOUNT_SUSPENDED");
     return;
   }
   next();
@@ -169,7 +225,8 @@ export function blockDuringImpersonation(
 ) {
   if (req.impersonation) {
     res.status(403).json({
-      error: "Mutating actions are blocked while viewing as another user.",
+      error: "IMPERSONATION_READONLY",
+      message: "Mutating actions are blocked while viewing as another user.",
     });
     return;
   }

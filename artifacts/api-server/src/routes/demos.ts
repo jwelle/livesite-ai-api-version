@@ -22,11 +22,22 @@ import {
   type EnrichInput,
 } from "../services/enrichmentService";
 import { seedIfEmpty } from "../services/seed";
-import { blockDuringImpersonation } from "../middlewares/authMiddleware";
+import { blockDuringImpersonation, requireActiveUser } from "../middlewares/authMiddleware";
+import { sendError } from "../lib/errors";
 import { logger } from "../lib/logger";
+import {
+  checkCanCreateDemo,
+  checkCanRunEnrichment,
+  recordEnrichment,
+} from "../services/usageService";
 
 const router = Router();
 
+// Gate every authenticated route in this router on a fully-approved account.
+// All routes here require the user to be signed in, so this is safe.
+router.use(requireActiveUser);
+
+const requireActive = requireActiveUser;
 const blockMutateForImpersonation = blockDuringImpersonation;
 
 const FALLBACK_WIDGET_ID = "69c5a088532eaeb30be7c36d";
@@ -108,7 +119,7 @@ function checkRateLimit(userId: string): boolean {
 
 router.get("/demos", async (req, res) => {
   if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
+    sendError(res, "UNAUTHORIZED");
     return;
   }
   const userId = req.user.id;
@@ -121,9 +132,9 @@ router.get("/demos", async (req, res) => {
   res.json(demos);
 });
 
-router.post("/demos", blockMutateForImpersonation, async (req, res) => {
+router.post("/demos", requireActive, blockMutateForImpersonation, async (req, res) => {
   if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
+    sendError(res, "UNAUTHORIZED");
     return;
   }
   const parsed = CreateDemoBody.safeParse(req.body);
@@ -133,6 +144,10 @@ router.post("/demos", blockMutateForImpersonation, async (req, res) => {
   }
   const userId = req.user.id;
   const data = parsed.data;
+
+  // Free-tier total-demo cap (admins bypass).
+  const allowed = await checkCanCreateDemo(req.user, res);
+  if (!allowed) return;
 
   const [settings] = await db
     .select()
@@ -194,7 +209,7 @@ router.post("/demos", blockMutateForImpersonation, async (req, res) => {
 
 router.get("/demos/:id", async (req, res) => {
   if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
+    sendError(res, "UNAUTHORIZED");
     return;
   }
   const params = GetDemoParams.safeParse(req.params);
@@ -223,7 +238,7 @@ router.get("/demos/:id", async (req, res) => {
 
 router.patch("/demos/:id", blockMutateForImpersonation, async (req, res) => {
   if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
+    sendError(res, "UNAUTHORIZED");
     return;
   }
   const params = UpdateDemoParams.safeParse(req.params);
@@ -310,7 +325,7 @@ router.patch("/demos/:id", blockMutateForImpersonation, async (req, res) => {
 
 router.delete("/demos/:id", blockMutateForImpersonation, async (req, res) => {
   if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
+    sendError(res, "UNAUTHORIZED");
     return;
   }
   const params = DeleteDemoParams.safeParse(req.params);
@@ -336,7 +351,7 @@ router.delete("/demos/:id", blockMutateForImpersonation, async (req, res) => {
 
 router.post("/demos/:id/regenerate-slug", blockMutateForImpersonation, async (req, res) => {
   if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
+    sendError(res, "UNAUTHORIZED");
     return;
   }
   const params = RegenerateDemoSlugParams.safeParse(req.params);
@@ -371,7 +386,7 @@ router.post("/demos/:id/regenerate-slug", blockMutateForImpersonation, async (re
 
 router.get("/dashboard/stats", async (req, res) => {
   if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
+    sendError(res, "UNAUTHORIZED");
     return;
   }
   const userId = req.user.id;
@@ -407,9 +422,9 @@ router.get("/openai-status", (_req, res) => {
 });
 
 // ---- Enrichment (no save) ----
-router.post("/enrich-business", blockMutateForImpersonation, async (req, res) => {
+router.post("/enrich-business", requireActive, blockMutateForImpersonation, async (req, res) => {
   if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
+    sendError(res, "UNAUTHORIZED");
     return;
   }
   if (!isOpenAIConfigured()) {
@@ -429,6 +444,8 @@ router.post("/enrich-business", blockMutateForImpersonation, async (req, res) =>
     res.status(429).json({ error: "Too many enrichment requests. Please wait a minute and try again." });
     return;
   }
+  const okQuota1 = await checkCanRunEnrichment(req.user, res);
+  if (!okQuota1) return;
   const input: EnrichInput = {
     businessName: parsed.data.businessName,
     websiteUrl: normalizeUrl(parsed.data.websiteUrl),
@@ -440,6 +457,7 @@ router.post("/enrich-business", blockMutateForImpersonation, async (req, res) =>
   };
   try {
     const result = await runEnrichment(input);
+    await recordEnrichment(req.user.id);
     res.json({ success: true, ...result });
   } catch (err) {
     logger.error({ err: (err as Error).message }, "enrich-business failed");
@@ -448,9 +466,9 @@ router.post("/enrich-business", blockMutateForImpersonation, async (req, res) =>
 });
 
 // ---- Enrich a saved demo ----
-router.post("/demos/:id/enrich", blockMutateForImpersonation, async (req, res) => {
+router.post("/demos/:id/enrich", requireActive, blockMutateForImpersonation, async (req, res) => {
   if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
+    sendError(res, "UNAUTHORIZED");
     return;
   }
   if (!isOpenAIConfigured()) {
@@ -463,6 +481,8 @@ router.post("/demos/:id/enrich", blockMutateForImpersonation, async (req, res) =
     res.status(429).json({ error: "Too many enrichment requests. Please wait a minute and try again." });
     return;
   }
+  const okQuota2 = await checkCanRunEnrichment(req.user, res);
+  if (!okQuota2) return;
   const [demo] = await db
     .select()
     .from(demosTable)
@@ -509,6 +529,7 @@ router.post("/demos/:id/enrich", blockMutateForImpersonation, async (req, res) =
       promptText: result.aiGeneratedPrompt,
       notes: result.limitedResults ? "Limited public information found." : null,
     });
+    await recordEnrichment(req.user.id);
     res.json(updated);
   } catch (err) {
     logger.error({ err: (err as Error).message }, "enrich-demo failed");
@@ -518,8 +539,8 @@ router.post("/demos/:id/enrich", blockMutateForImpersonation, async (req, res) =
 });
 
 // ---- Regenerate prompt only ----
-router.post("/demos/:id/regenerate", blockMutateForImpersonation, async (req, res) => {
-  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+router.post("/demos/:id/regenerate", requireActive, blockMutateForImpersonation, async (req, res) => {
+  if (!req.isAuthenticated()) { sendError(res, "UNAUTHORIZED"); return; }
   if (!isOpenAIConfigured()) {
     res.status(500).json({ error: "OpenAI is not configured on the server." });
     return;
@@ -530,6 +551,8 @@ router.post("/demos/:id/regenerate", blockMutateForImpersonation, async (req, re
     res.status(429).json({ error: "Too many requests. Please wait a minute and try again." });
     return;
   }
+  const okQuota3 = await checkCanRunEnrichment(req.user, res);
+  if (!okQuota3) return;
   const [demo] = await db
     .select()
     .from(demosTable)
@@ -571,6 +594,7 @@ router.post("/demos/:id/regenerate", blockMutateForImpersonation, async (req, re
         promptText: result.aiGeneratedPrompt,
         notes: "Mode: separate — saved as a new version; demo's AI prompt and working prompt were not changed.",
       });
+      await recordEnrichment(req.user.id);
       res.json(demo);
       return;
     }
@@ -591,6 +615,7 @@ router.post("/demos/:id/regenerate", blockMutateForImpersonation, async (req, re
       promptText: result.aiGeneratedPrompt,
       notes: result.limitedResults ? "Limited public information found." : null,
     });
+    await recordEnrichment(req.user.id);
     res.json(updated);
   } catch (err) {
     logger.error({ err: (err as Error).message }, "regenerate failed");
@@ -599,7 +624,7 @@ router.post("/demos/:id/regenerate", blockMutateForImpersonation, async (req, re
 });
 
 router.post("/demos/:id/copy-event", blockMutateForImpersonation, async (req, res) => {
-  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  if (!req.isAuthenticated()) { sendError(res, "UNAUTHORIZED"); return; }
   const params = LogDemoCopyEventParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: "Invalid ID" }); return; }
   const [demo] = await db
@@ -619,7 +644,7 @@ router.post("/demos/:id/copy-event", blockMutateForImpersonation, async (req, re
 });
 
 router.post("/demos/:id/export-markdown", blockMutateForImpersonation, async (req, res) => {
-  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  if (!req.isAuthenticated()) { sendError(res, "UNAUTHORIZED"); return; }
   const params = ExportDemoMarkdownParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: "Invalid ID" }); return; }
   const [demo] = await db
@@ -637,7 +662,7 @@ router.post("/demos/:id/export-markdown", blockMutateForImpersonation, async (re
 });
 
 router.post("/demos/:id/export-json", blockMutateForImpersonation, async (req, res) => {
-  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  if (!req.isAuthenticated()) { sendError(res, "UNAUTHORIZED"); return; }
   const params = ExportDemoJsonParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: "Invalid ID" }); return; }
   const [demo] = await db
@@ -660,7 +685,7 @@ router.post("/demos/:id/export-json", blockMutateForImpersonation, async (req, r
 });
 
 router.post("/demos/:id/push-ghl", blockMutateForImpersonation, async (req, res) => {
-  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  if (!req.isAuthenticated()) { sendError(res, "UNAUTHORIZED"); return; }
   const params = PushDemoToGhlParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: "Invalid ID" }); return; }
   const [demo] = await db
@@ -675,7 +700,7 @@ router.post("/demos/:id/push-ghl", blockMutateForImpersonation, async (req, res)
 });
 
 router.get("/demos/:id/prompt-versions", async (req, res) => {
-  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  if (!req.isAuthenticated()) { sendError(res, "UNAUTHORIZED"); return; }
   const id = req.params.id;
   if (!id || typeof id !== "string") { res.status(400).json({ error: "Invalid ID" }); return; }
   const [demo] = await db

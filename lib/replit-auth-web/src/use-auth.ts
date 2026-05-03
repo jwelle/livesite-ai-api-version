@@ -8,6 +8,8 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  tier: "free" | "pro" | null;
+  status: "active" | "suspended" | "pending_approval" | null;
   impersonating: { targetUserId: string; targetEmail: string | null } | null;
   refresh: () => Promise<void>;
   login: (returnTo?: string) => void;
@@ -70,6 +72,8 @@ export function useAuth(): AuthState {
     isLoading,
     isAuthenticated: !!user,
     isAdmin: user?.role === "admin",
+    tier: (user?.tier as "free" | "pro" | undefined) ?? null,
+    status: (user?.status as AuthState["status"]) ?? null,
     impersonating: user?.impersonating ?? null,
     refresh,
     login,

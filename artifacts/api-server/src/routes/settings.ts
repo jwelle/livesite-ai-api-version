@@ -2,9 +2,11 @@ import { Router } from "express";
 import { db, agencySettingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { UpdateSettingsBody } from "@workspace/api-zod";
-import { blockDuringImpersonation } from "../middlewares/authMiddleware";
+import { blockDuringImpersonation, requireActiveUser } from "../middlewares/authMiddleware";
+import { sendError } from "../lib/errors";
 
 const router = Router();
+router.use(requireActiveUser);
 
 async function getOrCreateSettings(userId: string) {
   const [existing] = await db
@@ -30,7 +32,7 @@ async function getOrCreateSettings(userId: string) {
 
 router.get("/settings", async (req, res) => {
   if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
+    sendError(res, "UNAUTHORIZED");
     return;
   }
   const settings = await getOrCreateSettings(req.user.id);
@@ -39,7 +41,7 @@ router.get("/settings", async (req, res) => {
 
 router.patch("/settings", blockDuringImpersonation, async (req, res) => {
   if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
+    sendError(res, "UNAUTHORIZED");
     return;
   }
   const parsed = UpdateSettingsBody.safeParse(req.body);

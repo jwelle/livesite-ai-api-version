@@ -22,6 +22,14 @@ export type AuthUserStatus =
 export const AuthUserStatus = {
   active: "active",
   suspended: "suspended",
+  pending_approval: "pending_approval",
+} as const;
+
+export type AuthUserTier = (typeof AuthUserTier)[keyof typeof AuthUserTier];
+
+export const AuthUserTier = {
+  free: "free",
+  pro: "pro",
 } as const;
 
 export type AuthUserImpersonating = {
@@ -42,8 +50,17 @@ export interface AuthUser {
   profileImageUrl: string | null;
   role?: AuthUserRole;
   status?: AuthUserStatus;
+  tier?: AuthUserTier;
   impersonating?: AuthUserImpersonating;
 }
+
+export type AdminUserRowTier =
+  (typeof AdminUserRowTier)[keyof typeof AdminUserRowTier];
+
+export const AdminUserRowTier = {
+  free: "free",
+  pro: "pro",
+} as const;
 
 export interface AdminUserRow {
   id: string;
@@ -55,9 +72,14 @@ export interface AdminUserRow {
   lastName: string | null;
   role: string;
   status: string;
+  tier: AdminUserRowTier;
   createdAt: string;
   demoCount: number;
+  demosCreated: number;
+  enrichmentsToday: number;
+  totalEnrichments: number;
   lastActivity: string | null;
+  lastLoginAt: string | null;
 }
 
 export interface AdminUsersList {
@@ -138,6 +160,144 @@ export type LogoutSuccess = typeof LogoutSuccessValue;
 
 export interface ErrorEnvelope {
   error: string;
+  /** @nullable */
+  message?: string | null;
+}
+
+export type UsageSnapshotTier =
+  (typeof UsageSnapshotTier)[keyof typeof UsageSnapshotTier];
+
+export const UsageSnapshotTier = {
+  free: "free",
+  pro: "pro",
+} as const;
+
+export type UsageSnapshotStatus =
+  (typeof UsageSnapshotStatus)[keyof typeof UsageSnapshotStatus];
+
+export const UsageSnapshotStatus = {
+  active: "active",
+  suspended: "suspended",
+  pending_approval: "pending_approval",
+} as const;
+
+export interface UsageSnapshot {
+  tier: UsageSnapshotTier;
+  demosCreated: number;
+  demoLimit: number | null;
+  enrichmentsToday: number;
+  dailyEnrichmentLimit: number | null;
+  status: UsageSnapshotStatus;
+  usageDate?: string;
+}
+
+export type AdminInviteRowTier =
+  (typeof AdminInviteRowTier)[keyof typeof AdminInviteRowTier];
+
+export const AdminInviteRowTier = {
+  free: "free",
+  pro: "pro",
+} as const;
+
+export interface AdminInviteRow {
+  id: string;
+  token: string;
+  tier: AdminInviteRowTier;
+  /** @nullable */
+  invitedEmail?: string | null;
+  /** @nullable */
+  note?: string | null;
+  createdAt: string;
+  expiresAt?: string | null;
+  consumedAt?: string | null;
+  /** @nullable */
+  consumedByUserId?: string | null;
+  revokedAt?: string | null;
+  createdBy: string;
+}
+
+export interface AdminInvitesList {
+  page: number;
+  pageSize: number;
+  total: number;
+  items: AdminInviteRow[];
+}
+
+export type CreateInviteBodyTier =
+  (typeof CreateInviteBodyTier)[keyof typeof CreateInviteBodyTier];
+
+export const CreateInviteBodyTier = {
+  free: "free",
+  pro: "pro",
+} as const;
+
+export interface CreateInviteBody {
+  tier: CreateInviteBodyTier;
+  /** @nullable */
+  invitedEmail?: string | null;
+  /** @nullable */
+  expiresInDays?: number | null;
+  /** @nullable */
+  note?: string | null;
+}
+
+export interface CreateInviteResponse {
+  invite: AdminInviteRow;
+}
+
+export type ManualUserUpsertBodyTier =
+  (typeof ManualUserUpsertBodyTier)[keyof typeof ManualUserUpsertBodyTier];
+
+export const ManualUserUpsertBodyTier = {
+  free: "free",
+  pro: "pro",
+} as const;
+
+export type ManualUserUpsertBodyRole =
+  (typeof ManualUserUpsertBodyRole)[keyof typeof ManualUserUpsertBodyRole];
+
+export const ManualUserUpsertBodyRole = {
+  user: "user",
+  admin: "admin",
+} as const;
+
+export interface ManualUserUpsertBody {
+  email: string;
+  tier?: ManualUserUpsertBodyTier;
+  role?: ManualUserUpsertBodyRole;
+  /** @nullable */
+  firstName?: string | null;
+  /** @nullable */
+  lastName?: string | null;
+}
+
+export interface ManualUserUpsertResponse {
+  user: AdminUserRow;
+  created: boolean;
+}
+
+export type SetTierBodyTier =
+  (typeof SetTierBodyTier)[keyof typeof SetTierBodyTier];
+
+export const SetTierBodyTier = {
+  free: "free",
+  pro: "pro",
+} as const;
+
+export interface SetTierBody {
+  tier: SetTierBodyTier;
+}
+
+export type SetRoleBodyRole =
+  (typeof SetRoleBodyRole)[keyof typeof SetRoleBodyRole];
+
+export const SetRoleBodyRole = {
+  user: "user",
+  admin: "admin",
+} as const;
+
+export interface SetRoleBody {
+  role: SetRoleBodyRole;
 }
 
 export interface SuccessEnvelope {
@@ -594,6 +754,21 @@ export type GetAdminUsersParams = {
   page?: number;
   pageSize?: number;
   search?: string;
+  status?: GetAdminUsersStatus;
+};
+
+export type GetAdminUsersStatus =
+  (typeof GetAdminUsersStatus)[keyof typeof GetAdminUsersStatus];
+
+export const GetAdminUsersStatus = {
+  pending_approval: "pending_approval",
+  active: "active",
+  suspended: "suspended",
+} as const;
+
+export type ListInvitesParams = {
+  page?: number;
+  pageSize?: number;
 };
 
 export type GetAdminDemosParams = {

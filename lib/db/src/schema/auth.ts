@@ -1,5 +1,15 @@
 import { sql } from "drizzle-orm";
-import { index, jsonb, pgTable, timestamp, varchar, text } from "drizzle-orm/pg-core";
+import {
+  date,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  timestamp,
+  uniqueIndex,
+  varchar,
+  text,
+} from "drizzle-orm/pg-core";
 
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 export const sessionsTable = pgTable(
@@ -13,6 +23,8 @@ export const sessionsTable = pgTable(
 );
 
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+// status: "pending_approval" | "active" | "suspended"
+// tier: "free" | "pro"
 export const usersTable = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
@@ -20,7 +32,9 @@ export const usersTable = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role", { length: 20 }).notNull().default("user"),
-  status: varchar("status", { length: 20 }).notNull().default("active"),
+  status: varchar("status", { length: 32 }).notNull().default("pending_approval"),
+  tier: varchar("tier", { length: 20 }).notNull().default("free"),
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
@@ -44,3 +58,43 @@ export const adminAuditLogTable = pgTable(
 );
 
 export type AdminAuditLog = typeof adminAuditLogTable.$inferSelect;
+
+export const userInvitesTable = pgTable(
+  "user_invites",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    token: varchar("token", { length: 64 }).notNull().unique(),
+    tier: varchar("tier", { length: 20 }).notNull().default("free"),
+    invitedEmail: varchar("invited_email"),
+    note: text("note"),
+    createdBy: varchar("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    consumedByUserId: varchar("consumed_by_user_id"),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [index("IDX_user_invites_created_at").on(table.createdAt)],
+);
+
+export type UserInvite = typeof userInvitesTable.$inferSelect;
+export type InsertUserInvite = typeof userInvitesTable.$inferInsert;
+
+export const dailyUsageTable = pgTable(
+  "daily_usage",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    usageDate: date("usage_date").notNull(),
+    enrichmentCount: integer("enrichment_count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("UQ_daily_usage_user_date").on(table.userId, table.usageDate),
+  ],
+);
+
+export type DailyUsage = typeof dailyUsageTable.$inferSelect;

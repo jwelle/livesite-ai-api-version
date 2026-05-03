@@ -48,9 +48,11 @@ export default defineConfig({
       },
     },
     output: {
-      workspace: apiZodSrc,
+      // No `workspace` — that causes orval to auto-write a top-level
+      // `src/index.ts` that references files (`api.schemas.ts`) we don't
+      // emit. We hand-author `lib/api-zod/src/index.ts` ourselves.
       client: "zod",
-      target: "generated",
+      target: path.resolve(apiZodSrc, "generated", "api.ts"),
       mode: "split",
       clean: true,
       prettier: true,
