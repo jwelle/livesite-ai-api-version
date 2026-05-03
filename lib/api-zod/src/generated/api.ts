@@ -167,7 +167,7 @@ export const GetDemosResponseItem = zod.object({
     .union([zod.array(zod.string()), zod.null()])
     .optional(),
   websiteAnalysisStatus: zod
-    .enum(["not_started", "ok", "partial", "failed"])
+    .enum(["not_started", "in_progress", "completed", "failed"])
     .optional(),
   websiteAnalysisError: zod.string().nullish(),
   websiteAnalyzedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
@@ -269,7 +269,7 @@ export const GetDemoResponse = zod.object({
     .union([zod.array(zod.string()), zod.null()])
     .optional(),
   websiteAnalysisStatus: zod
-    .enum(["not_started", "ok", "partial", "failed"])
+    .enum(["not_started", "in_progress", "completed", "failed"])
     .optional(),
   websiteAnalysisError: zod.string().nullish(),
   websiteAnalyzedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
@@ -373,7 +373,7 @@ export const UpdateDemoResponse = zod.object({
     .union([zod.array(zod.string()), zod.null()])
     .optional(),
   websiteAnalysisStatus: zod
-    .enum(["not_started", "ok", "partial", "failed"])
+    .enum(["not_started", "in_progress", "completed", "failed"])
     .optional(),
   websiteAnalysisError: zod.string().nullish(),
   websiteAnalyzedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
@@ -470,7 +470,7 @@ export const AnalyzeDemoWebsiteResponse = zod.object({
       .union([zod.array(zod.string()), zod.null()])
       .optional(),
     websiteAnalysisStatus: zod
-      .enum(["not_started", "ok", "partial", "failed"])
+      .enum(["not_started", "in_progress", "completed", "failed"])
       .optional(),
     websiteAnalysisError: zod.string().nullish(),
     websiteAnalyzedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
@@ -495,20 +495,13 @@ export const ApplyDemoWebsiteIntelligenceParams = zod.object({
   id: zod.coerce.string(),
 });
 
-export const ApplyDemoWebsiteIntelligenceBody = zod.object({
-  fields: zod
-    .array(
-      zod.enum([
-        "companyDescription",
-        "servicesOffered",
-        "serviceArea",
-        "chatPersonaName",
-        "voicePersonaName",
-        "voiceAiGoal",
-      ]),
-    )
-    .min(1),
-});
+export const ApplyDemoWebsiteIntelligenceBody = zod
+  .object({
+    overwrite: zod.boolean(),
+  })
+  .describe(
+    "When overwrite is false, only empty target fields are filled.\nWhen overwrite is true, populated fields are replaced too. The\nUI is responsible for confirming with the user before sending\noverwrite=true.\n",
+  );
 
 export const ApplyDemoWebsiteIntelligenceResponse = zod.object({
   id: zod.string(),
@@ -564,7 +557,7 @@ export const ApplyDemoWebsiteIntelligenceResponse = zod.object({
     .union([zod.array(zod.string()), zod.null()])
     .optional(),
   websiteAnalysisStatus: zod
-    .enum(["not_started", "ok", "partial", "failed"])
+    .enum(["not_started", "in_progress", "completed", "failed"])
     .optional(),
   websiteAnalysisError: zod.string().nullish(),
   websiteAnalyzedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
@@ -640,7 +633,7 @@ export const RegenerateDemoSlugResponse = zod.object({
     .union([zod.array(zod.string()), zod.null()])
     .optional(),
   websiteAnalysisStatus: zod
-    .enum(["not_started", "ok", "partial", "failed"])
+    .enum(["not_started", "in_progress", "completed", "failed"])
     .optional(),
   websiteAnalysisError: zod.string().nullish(),
   websiteAnalyzedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),

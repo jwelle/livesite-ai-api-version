@@ -914,7 +914,7 @@ components:
             - type: 'null'
         websiteAnalysisStatus:
           type: string
-          enum: [not_started, ok, partial, failed]
+          enum: [not_started, in_progress, completed, failed]
         websiteAnalysisError:
           type: [string, 'null']
         websiteAnalyzedAt:
@@ -1126,20 +1126,15 @@ components:
 
     ApplyWebsiteIntelligenceBody:
       type: object
-      required: [fields]
+      required: [overwrite]
+      description: |
+        When overwrite is false, only empty target fields are filled.
+        When overwrite is true, populated fields are replaced too. The
+        UI is responsible for confirming with the user before sending
+        overwrite=true.
       properties:
-        fields:
-          type: array
-          minItems: 1
-          items:
-            type: string
-            enum:
-              - companyDescription
-              - servicesOffered
-              - serviceArea
-              - chatPersonaName
-              - voicePersonaName
-              - voiceAiGoal
+        overwrite:
+          type: boolean
 
     DashboardStats:
       type: object

@@ -156,8 +156,8 @@ export type DemoWebsiteAnalysisStatus =
 
 export const DemoWebsiteAnalysisStatus = {
   not_started: "not_started",
-  ok: "ok",
-  partial: "partial",
+  in_progress: "in_progress",
+  completed: "completed",
   failed: "failed",
 } as const;
 
@@ -450,21 +450,15 @@ export interface AnalyzeWebsiteError {
   code: AnalyzeWebsiteErrorCode;
 }
 
-export type ApplyWebsiteIntelligenceBodyFieldsItem =
-  (typeof ApplyWebsiteIntelligenceBodyFieldsItem)[keyof typeof ApplyWebsiteIntelligenceBodyFieldsItem];
+/**
+ * When overwrite is false, only empty target fields are filled.
+When overwrite is true, populated fields are replaced too. The
+UI is responsible for confirming with the user before sending
+overwrite=true.
 
-export const ApplyWebsiteIntelligenceBodyFieldsItem = {
-  companyDescription: "companyDescription",
-  servicesOffered: "servicesOffered",
-  serviceArea: "serviceArea",
-  chatPersonaName: "chatPersonaName",
-  voicePersonaName: "voicePersonaName",
-  voiceAiGoal: "voiceAiGoal",
-} as const;
-
+ */
 export interface ApplyWebsiteIntelligenceBody {
-  /** @minItems 1 */
-  fields: ApplyWebsiteIntelligenceBodyFieldsItem[];
+  overwrite: boolean;
 }
 
 export interface DashboardStats {

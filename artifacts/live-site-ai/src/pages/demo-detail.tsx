@@ -34,6 +34,17 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 
 const APPLY_FIELDS: Array<{ key: string; label: string; description: string; sourceKey: keyof DemoSourceMap }> = [
@@ -71,7 +82,7 @@ export default function DemoDetail() {
   const regenerateSlug = useRegenerateDemoSlug();
   const analyzeWebsite = useAnalyzeDemoWebsite();
   const applyIntelligence = useApplyDemoWebsiteIntelligence();
-  const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
+  const [overwriteConfirm, setOverwriteConfirm] = useState<{ fields: string[] } | null>(null);
 
   if (isLoading) {
     return <div className="flex h-screen items-center justify-center"><Spinner className="h-8 w-8 text-primary" /></div>;
@@ -131,14 +142,15 @@ Be professional, concise, and helpful.`;
       {
         onSuccess: (data) => {
           queryClient.invalidateQueries({ queryKey: getGetDemoQueryKey(demo.id) });
-          const sourceLabel = data.source === "openai" ? "OpenAI" : "basic parser";
+          const sourceLabel = data.source === "openai" ? "OpenAI" : "Basic parser";
           toast({
             title: `Website analyzed (${sourceLabel})`,
             description: data.warnings.length > 0 ? data.warnings[0] : undefined,
           });
         },
-        onError: (err: any) => {
-          const msg = err?.response?.data?.error || err?.message || "Failed to analyze website";
+        onError: (err: unknown) => {
+          const e = err as { response?: { data?: { error?: string } }; message?: string };
+          const msg = e?.response?.data?.error || e?.message || "Failed to analyze website";
           toast({ title: "Website analysis failed", description: msg, variant: "destructive" });
         },
       },
@@ -161,36 +173,49 @@ Be professional, concise, and helpful.`;
     return false;
   };
 
-  const toggleField = (key: string, checked: boolean) => {
-    setSelectedFields((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(key); else next.delete(key);
-      return next;
-    });
-  };
+  // Which target fields would be overwritten (have an existing non-empty value AND have a candidate to apply).
+  const populatedTargets: string[] = [];
+  if (fieldHasValue("extractedBusinessSummary") && demo.companyDescription?.trim()) populatedTargets.push("Company Description");
+  if (fieldHasValue("extractedServices") && demo.servicesOffered?.trim()) populatedTargets.push("Services Offered");
+  if (fieldHasValue("extractedServiceArea") && demo.serviceArea?.trim()) populatedTargets.push("Service Area");
+  if (fieldHasValue("suggestedChatPersona") && demo.chatPersonaName?.trim()) populatedTargets.push("Chat Persona Name");
+  if (fieldHasValue("suggestedVoicePersona") && demo.voicePersonaName?.trim()) populatedTargets.push("Voice Persona Name");
+  if (fieldHasValue("generatedVoicePrompt") && demo.voiceAiGoal?.trim()) populatedTargets.push("Voice AI Goal / Prompt");
 
-  const handleApply = () => {
-    if (selectedFields.size === 0) {
-      toast({ title: "Select at least one field to apply" });
-      return;
-    }
+  const hasAnyCandidate = APPLY_FIELDS.some((f) => fieldHasValue(f.sourceKey));
+
+  const sendApply = (overwrite: boolean) => {
     applyIntelligence.mutate(
-      { id: demo.id, data: { fields: Array.from(selectedFields) as any } },
+      { id: demo.id, data: { overwrite } },
       {
         onSuccess: () => {
-          toast({ title: "Applied to demo fields" });
-          setSelectedFields(new Set());
+          toast({
+            title: overwrite ? "Demo fields overwritten" : "Empty demo fields filled",
+          });
           queryClient.invalidateQueries({ queryKey: getGetDemoQueryKey(demo.id) });
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
+          const e = err as { message?: string };
           toast({
             title: "Failed to apply",
-            description: err?.message || "",
+            description: e?.message || "",
             variant: "destructive",
           });
         },
       },
     );
+  };
+
+  const handleApplyClick = () => {
+    if (!hasAnyCandidate) {
+      toast({ title: "Nothing to apply yet — run an analysis first." });
+      return;
+    }
+    if (populatedTargets.length > 0) {
+      setOverwriteConfirm({ fields: populatedTargets });
+      return;
+    }
+    sendApply(false);
   };
 
   const analyzedAt = demo.websiteAnalyzedAt ? new Date(demo.websiteAnalyzedAt) : null;
@@ -199,6 +224,20 @@ Be professional, concise, and helpful.`;
   const leadQuestions = (demo.suggestedLeadQuestions as string[] | null) ?? null;
   const faqs = (demo.extractedFaqs as Array<{ question: string; answer_guidance: string }> | null) ?? null;
   const missing = (demo.missingInformation as string[] | null) ?? null;
+
+  const status = demo.websiteAnalysisStatus ?? "not_started";
+  const isAnalyzing = analyzeWebsite.isPending || status === "in_progress";
+  const sourceLabel =
+    demo.websiteAnalysisSource === "openai"
+      ? "OpenAI"
+      : demo.websiteAnalysisSource === "basic"
+        ? "Basic parser"
+        : "Manual";
+  const statusBadge =
+    status === "completed" ? { variant: "default" as const, text: "Completed" } :
+    status === "failed" ? { variant: "destructive" as const, text: "Failed" } :
+    status === "in_progress" ? { variant: "secondary" as const, text: "Analyzing…" } :
+    { variant: "secondary" as const, text: "Not analyzed" };
 
   return (
     <div className="p-8 max-w-6xl mx-auto w-full space-y-8">
@@ -322,10 +361,10 @@ Be professional, concise, and helpful.`;
                 </div>
                 <Button
                   onClick={handleAnalyze}
-                  disabled={analyzeWebsite.isPending}
+                  disabled={isAnalyzing}
                   data-testid="btn-analyze-website"
                 >
-                  {analyzeWebsite.isPending ? (
+                  {isAnalyzing ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
                     <Sparkles className="mr-2 h-4 w-4" />
@@ -335,7 +374,18 @@ Be professional, concise, and helpful.`;
               </div>
             </CardHeader>
             <CardContent className="space-y-5">
-              {demo.websiteAnalysisStatus === "failed" && demo.websiteAnalysisError && (
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <Badge variant={statusBadge.variant} data-testid="badge-analysis-status">{statusBadge.text}</Badge>
+                <span>Source: <span className="font-medium text-foreground">{sourceLabel}</span></span>
+                {analyzedAt && <span>· Last analyzed {format(analyzedAt, "PPpp")}</span>}
+              </div>
+
+              <p className="text-xs text-muted-foreground italic">
+                Website Intelligence uses public website content only — no login pages, paywalled content, or
+                private data are accessed.
+              </p>
+
+              {status === "failed" && demo.websiteAnalysisError && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Analysis failed</AlertTitle>
@@ -343,7 +393,17 @@ Be professional, concise, and helpful.`;
                 </Alert>
               )}
 
-              {!demo.websiteAnalyzedAt && demo.websiteAnalysisStatus !== "failed" && (
+              {status === "in_progress" && (
+                <Alert>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <AlertTitle>Analyzing…</AlertTitle>
+                  <AlertDescription>
+                    Fetching <span className="font-medium">{demo.websiteUrl}</span>. This usually takes a few seconds.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {!demo.websiteAnalyzedAt && status !== "failed" && status !== "in_progress" && (
                 <p className="text-sm text-muted-foreground">
                   Click "Analyze Website" to pull content from{" "}
                   <span className="font-medium">{demo.websiteUrl}</span> and generate suggestions.
@@ -352,13 +412,6 @@ Be professional, concise, and helpful.`;
 
               {demo.websiteAnalyzedAt && (
                 <>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>
-                      Analyzed {analyzedAt ? format(analyzedAt, "PPpp") : ""}
-                      {demo.websiteAnalysisSource ? ` · ${demo.websiteAnalysisSource}` : ""}
-                    </span>
-                  </div>
 
                   {missing && missing.length > 0 && (
                     <Alert>
@@ -457,59 +510,102 @@ Be professional, concise, and helpful.`;
 
                   <div className="rounded-lg border p-4 space-y-3">
                     <div>
-                      <div className="font-medium">Apply to demo fields</div>
+                      <div className="font-medium">Apply to Demo Fields</div>
                       <div className="text-xs text-muted-foreground">
-                        Pick which generated values to copy into your editable demo fields. This will overwrite the selected fields.
+                        Empty fields are filled silently. Populated fields are kept unless you confirm an overwrite.
                       </div>
                     </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
+                    <ul className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
                       {APPLY_FIELDS.map((f) => {
                         const enabled = fieldHasValue(f.sourceKey);
                         return (
-                          <label
+                          <li
                             key={f.key}
-                            className={`flex items-start gap-2 rounded-md border p-2 ${enabled ? "" : "opacity-50"}`}
+                            className={`flex items-center gap-2 rounded-md border px-2 py-1 ${enabled ? "" : "opacity-50"}`}
+                            data-testid={`apply-field-${f.key}`}
                           >
-                            <Checkbox
-                              disabled={!enabled}
-                              checked={selectedFields.has(f.key)}
-                              onCheckedChange={(c) => toggleField(f.key, Boolean(c))}
-                              data-testid={`checkbox-apply-${f.key}`}
-                            />
-                            <div className="text-sm">
-                              <div className="font-medium">{f.label}</div>
-                              <div className="text-xs text-muted-foreground">{f.description}</div>
-                            </div>
-                          </label>
+                            <Checkbox checked={enabled} disabled aria-readonly />
+                            <span className="font-medium text-foreground">{f.label}</span>
+                          </li>
                         );
                       })}
+                    </ul>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        onClick={handleApplyClick}
+                        disabled={applyIntelligence.isPending || !hasAnyCandidate}
+                        data-testid="btn-apply-intel"
+                      >
+                        {applyIntelligence.isPending ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                        )}
+                        Apply to Demo Fields
+                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span tabIndex={0}>
+                              <Button
+                                variant="outline"
+                                disabled
+                                data-testid="btn-update-ghl-agent"
+                              >
+                                Update GHL Agent
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>Coming soon — direct push to your GHL Voice AI agent.</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
-                    <Button
-                      onClick={handleApply}
-                      disabled={applyIntelligence.isPending || selectedFields.size === 0}
-                      data-testid="btn-apply-intel"
-                    >
-                      {applyIntelligence.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="mr-2 h-4 w-4" />
-                      )}
-                      Apply selected ({selectedFields.size})
-                    </Button>
                   </div>
                 </>
               )}
             </CardContent>
           </Card>
 
+          <AlertDialog
+            open={overwriteConfirm !== null}
+            onOpenChange={(open) => { if (!open) setOverwriteConfirm(null); }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Overwrite existing demo fields?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  These fields already have a value and will be replaced.
+                </AlertDialogDescription>
+                <ul className="list-disc pl-5 mt-2 text-sm text-muted-foreground">
+                  {(overwriteConfirm?.fields ?? []).map((f) => <li key={f}>{f}</li>)}
+                </ul>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => { setOverwriteConfirm(null); sendApply(false); }}>
+                  Keep populated, fill empty only
+                </AlertDialogCancel>
+                <AlertDialogAction onClick={() => { setOverwriteConfirm(null); sendApply(true); }} data-testid="btn-confirm-overwrite">
+                  Overwrite
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           <Card>
             <CardHeader>
-              <CardTitle>Generated Voice AI Prompt</CardTitle>
-              <CardDescription>
-                {demo.generatedVoicePrompt
-                  ? "Generated from your website analysis. Copy this into your GHL Voice AI prompt field."
-                  : "Run the website analysis above to generate a richer prompt. Showing a basic template for now."}
-              </CardDescription>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <CardTitle>Generated Voice AI Prompt</CardTitle>
+                  <CardDescription>
+                    {demo.generatedVoicePrompt
+                      ? "Generated from your website analysis. Copy this into your GHL Voice AI prompt field."
+                      : "Run the website analysis above to generate a richer prompt. Showing a basic template for now."}
+                  </CardDescription>
+                </div>
+                <Badge variant="outline" data-testid="badge-prompt-source">
+                  Source: {demo.generatedVoicePrompt ? "Website Intelligence" : "Template"}
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent>
               <pre className="p-4 rounded-lg bg-muted font-mono text-xs whitespace-pre-wrap text-muted-foreground max-h-96 overflow-auto">

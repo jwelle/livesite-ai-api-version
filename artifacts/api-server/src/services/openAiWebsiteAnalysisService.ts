@@ -8,16 +8,25 @@ import {
 const ANALYSIS_TEXT_CAP = 8_000;
 
 function getOpenAiConfig(): { apiKey: string; baseUrl: string; model: string } | null {
-  const apiKey =
-    process.env.OPENAI_API_KEY ||
-    process.env.AI_INTEGRATIONS_OPENAI_API_KEY ||
-    "";
-  if (!apiKey) return null;
-  const baseUrl =
-    process.env.OPENAI_BASE_URL ||
-    process.env.AI_INTEGRATIONS_OPENAI_BASE_URL ||
-    "https://api.openai.com/v1";
-  const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+  // Prefer the Replit AI Integrations proxy (no user-supplied key needed).
+  // Fall back to a user-provided OPENAI_API_KEY / OPENAI_BASE_URL when set.
+  const proxyKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const proxyBase = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+  const userKey = process.env.OPENAI_API_KEY;
+  const userBase = process.env.OPENAI_BASE_URL;
+
+  let apiKey = "";
+  let baseUrl = "https://api.openai.com/v1";
+  if (proxyKey && proxyBase) {
+    apiKey = proxyKey;
+    baseUrl = proxyBase;
+  } else if (userKey) {
+    apiKey = userKey;
+    if (userBase) baseUrl = userBase;
+  } else {
+    return null;
+  }
+  const model = process.env.OPENAI_MODEL || "gpt-5-mini";
   return { apiKey, baseUrl: baseUrl.replace(/\/+$/, ""), model };
 }
 
@@ -166,7 +175,10 @@ export async function analyzeWebsiteWithOpenAI(input: AnalysisInput): Promise<St
     const errText = await res.text().catch(() => "");
     throw new Error(`OpenAI Responses API error ${res.status}: ${errText.slice(0, 300)}`);
   }
-  const json: any = await res.json();
+  const json = (await res.json()) as {
+    output_text?: unknown;
+    output?: Array<{ content?: Array<{ text?: unknown; type?: unknown }> }>;
+  };
 
   // Responses API: prefer output_text helper if present, else first output.content[].text
   let raw = "";
@@ -190,7 +202,7 @@ export async function analyzeWebsiteWithOpenAI(input: AnalysisInput): Promise<St
     throw new Error("OpenAI response was empty");
   }
 
-  const parsed = extractJson(raw) as PartialAnalysis;
+  const parsed = extractJson(raw) as Partial<Record<keyof PartialAnalysis, unknown>>;
   // Defensive normalization
   const partial: PartialAnalysis = {
     company_summary: String(parsed.company_summary || "").trim(),
@@ -204,10 +216,15 @@ export async function analyzeWebsiteWithOpenAI(input: AnalysisInput): Promise<St
       ? parsed.suggested_lead_questions.map(String)
       : [],
     suggested_faqs: Array.isArray(parsed.suggested_faqs)
-      ? parsed.suggested_faqs.map((f: any) => ({
-          question: String(f?.question || "").trim(),
-          answer_guidance: String(f?.answer_guidance || "").trim(),
-        })).filter((f) => f.question)
+      ? (parsed.suggested_faqs as unknown[])
+          .map((raw) => {
+            const f = (raw ?? {}) as { question?: unknown; answer_guidance?: unknown };
+            return {
+              question: String(f.question ?? "").trim(),
+              answer_guidance: String(f.answer_guidance ?? "").trim(),
+            };
+          })
+          .filter((f) => f.question.length > 0)
       : [],
     missing_information: Array.isArray(parsed.missing_information)
       ? parsed.missing_information.map(String)

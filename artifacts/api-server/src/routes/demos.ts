@@ -272,6 +272,13 @@ router.delete("/demos/:id", blockMutateForImpersonation, async (req, res) => {
   res.json({ success: true });
 });
 
+function demoOwnerWhere(demoId: string, req: import("express").Request) {
+  const isRealAdmin = req.realUser?.role === "admin" && !req.impersonation;
+  return isRealAdmin
+    ? eq(demosTable.id, demoId)
+    : and(eq(demosTable.id, demoId), eq(demosTable.userId, req.user!.id));
+}
+
 router.post("/demos/:id/analyze-website", blockMutateForImpersonation, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized", code: "UNAUTHORIZED" });
@@ -286,11 +293,10 @@ router.post("/demos/:id/analyze-website", blockMutateForImpersonation, async (re
   // the agency's persisted setting + server-side key presence.
   AnalyzeDemoWebsiteBody.safeParse(req.body ?? {});
 
-  const userId = req.user.id;
   const [demo] = await db
     .select()
     .from(demosTable)
-    .where(and(eq(demosTable.id, params.data.id), eq(demosTable.userId, userId)));
+    .where(demoOwnerWhere(params.data.id, req));
   if (!demo) {
     res.status(404).json({ error: "Demo not found", code: "INVALID_URL" });
     return;
@@ -299,13 +305,22 @@ router.post("/demos/:id/analyze-website", blockMutateForImpersonation, async (re
   const [settings] = await db
     .select()
     .from(agencySettingsTable)
-    .where(eq(agencySettingsTable.userId, userId));
+    .where(eq(agencySettingsTable.userId, demo.userId));
 
   const targetUrl = demo.websiteUrl;
   if (!targetUrl) {
     res.status(400).json({ error: "Demo has no websiteUrl to analyze.", code: "INVALID_URL" });
     return;
   }
+
+  // Mark in_progress before doing any network IO so the UI can reflect it.
+  await db
+    .update(demosTable)
+    .set({
+      websiteAnalysisStatus: "in_progress",
+      websiteAnalysisError: null,
+    })
+    .where(eq(demosTable.id, demo.id));
 
   let fetched: { url: string; html: string };
   try {
@@ -323,6 +338,14 @@ router.post("/demos/:id/analyze-website", blockMutateForImpersonation, async (re
       res.status(400).json({ error: err.message, code: err.code });
       return;
     }
+    await db
+      .update(demosTable)
+      .set({
+        websiteAnalysisStatus: "failed",
+        websiteAnalysisError: "Unexpected error fetching the website.",
+        websiteAnalyzedAt: new Date(),
+      })
+      .where(eq(demosTable.id, demo.id));
     res.status(400).json({
       error: "Unexpected error fetching the website.",
       code: "FETCH_FAILED",
@@ -345,7 +368,7 @@ router.post("/demos/:id/analyze-website", blockMutateForImpersonation, async (re
 
   const warnings: string[] = [];
   let source: "openai" | "basic" = "basic";
-  let analysis;
+  let analysis: ReturnType<typeof analyzeWebsiteBasic>;
 
   if (wantOpenAi && isOpenAiConfigured()) {
     try {
@@ -364,8 +387,6 @@ router.post("/demos/:id/analyze-website", blockMutateForImpersonation, async (re
     analysis = analyzeWebsiteBasic(analysisInput);
     source = "basic";
   }
-
-  const status = analysis.missing_information.length > 0 ? "partial" : "ok";
 
   const [updated] = await db
     .update(demosTable)
@@ -386,7 +407,7 @@ router.post("/demos/:id/analyze-website", blockMutateForImpersonation, async (re
       generatedChatContext: analysis.generated_chat_context,
       generatedVoicePrompt: analysis.generated_voice_prompt,
       missingInformation: analysis.missing_information,
-      websiteAnalysisStatus: status,
+      websiteAnalysisStatus: "completed",
       websiteAnalysisError: null,
       websiteAnalyzedAt: new Date(),
       websiteAnalysisSource: source,
@@ -415,38 +436,67 @@ router.post("/demos/:id/apply-website-intelligence", blockMutateForImpersonation
   const [demo] = await db
     .select()
     .from(demosTable)
-    .where(and(eq(demosTable.id, params.data.id), eq(demosTable.userId, req.user.id)));
+    .where(demoOwnerWhere(params.data.id, req));
   if (!demo) {
     res.status(404).json({ error: "Demo not found" });
     return;
   }
 
+  const overwrite = body.data.overwrite;
   const services = Array.isArray(demo.extractedServices)
     ? (demo.extractedServices as unknown[]).map(String)
     : [];
-  const updates: Record<string, unknown> = {};
-  for (const field of body.data.fields) {
-    switch (field) {
-      case "companyDescription":
-        if (demo.extractedBusinessSummary) updates.companyDescription = demo.extractedBusinessSummary;
-        break;
-      case "servicesOffered":
-        if (services.length > 0) updates.servicesOffered = services.join(", ");
-        break;
-      case "serviceArea":
-        if (demo.extractedServiceArea && demo.extractedServiceArea !== "Unknown") {
-          updates.serviceArea = demo.extractedServiceArea;
-        }
-        break;
-      case "chatPersonaName":
-        if (demo.suggestedChatPersona) updates.chatPersonaName = demo.suggestedChatPersona;
-        break;
-      case "voicePersonaName":
-        if (demo.suggestedVoicePersona) updates.voicePersonaName = demo.suggestedVoicePersona;
-        break;
-      case "voiceAiGoal":
-        if (demo.generatedVoicePrompt) updates.voiceAiGoal = demo.generatedVoicePrompt;
-        break;
+  const isEmpty = (v: string | null | undefined): boolean => !v || v.trim().length === 0;
+
+  // Build the candidate updates (only fields whose source has a real value).
+  const candidates: Array<{ key: string; value: string; current: string | null }> = [];
+  if (demo.extractedBusinessSummary) {
+    candidates.push({
+      key: "companyDescription",
+      value: demo.extractedBusinessSummary,
+      current: demo.companyDescription,
+    });
+  }
+  if (services.length > 0) {
+    candidates.push({
+      key: "servicesOffered",
+      value: services.join(", "),
+      current: demo.servicesOffered,
+    });
+  }
+  if (demo.extractedServiceArea && demo.extractedServiceArea !== "Unknown") {
+    candidates.push({
+      key: "serviceArea",
+      value: demo.extractedServiceArea,
+      current: demo.serviceArea,
+    });
+  }
+  if (demo.suggestedChatPersona) {
+    candidates.push({
+      key: "chatPersonaName",
+      value: demo.suggestedChatPersona,
+      current: demo.chatPersonaName,
+    });
+  }
+  if (demo.suggestedVoicePersona) {
+    candidates.push({
+      key: "voicePersonaName",
+      value: demo.suggestedVoicePersona,
+      current: demo.voicePersonaName,
+    });
+  }
+  if (demo.generatedVoicePrompt) {
+    candidates.push({
+      key: "voiceAiGoal",
+      value: demo.generatedVoicePrompt,
+      current: demo.voiceAiGoal,
+    });
+  }
+
+  const updates: Record<string, string> = {};
+  for (const c of candidates) {
+    if (overwrite || isEmpty(c.current)) {
+      updates[c.key] = c.value;
     }
   }
 
