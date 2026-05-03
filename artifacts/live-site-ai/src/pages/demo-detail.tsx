@@ -10,6 +10,7 @@ import {
   useGetOpenAIStatus,
   useGetDemoPromptVersions,
   getGetDemoQueryKey,
+  getGetDemoPromptVersionsQueryKey,
   getGetDemosQueryKey,
 } from "@workspace/api-client-react";
 import { useParams, useLocation, Link } from "wouter";
@@ -86,6 +87,7 @@ export default function DemoDetail() {
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getGetDemoQueryKey(demo.id) });
+    queryClient.invalidateQueries({ queryKey: getGetDemoPromptVersionsQueryKey(demo.id) });
     queryClient.invalidateQueries({ queryKey: getGetDemosQueryKey() });
   };
 
