@@ -3,13 +3,21 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Live Site AI API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: Auth
+    description: Browser and mobile authentication endpoints.
+  - name: demos
+    description: Demo management
+  - name: settings
+    description: Agency settings
+  - name: public
+    description: Public demo pages (unauthenticated)
 paths:
   /healthz:
     get:
@@ -24,7 +32,431 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/user:
+    get:
+      tags: [Auth]
+      operationId: getCurrentAuthUser
+      summary: Get the currently authenticated user
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: Auth status resolved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserEnvelope'
+  /login:
+    get:
+      tags: [Auth]
+      operationId: beginBrowserLogin
+      summary: Start the browser OIDC login flow
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          description: Relative path to redirect to after login (must start with `/`). Defaults to `/`.
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to the OIDC authorization endpoint.
+  /callback:
+    get:
+      tags: [Auth]
+      operationId: handleBrowserLoginCallback
+      summary: Complete the browser OIDC login flow
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: iss
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uri
+      responses:
+        '302':
+          description: Redirect to the `returnTo` path on success (defaults to `/`) or `/api/login` on failure.
+  /logout:
+    get:
+      tags: [Auth]
+      operationId: logoutBrowserSession
+      summary: Clear the session and begin OIDC logout
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '302':
+          description: Redirect to the OIDC provider logout URL.
+  /mobile-auth/token-exchange:
+    post:
+      tags: [Auth]
+      operationId: exchangeMobileAuthorizationCode
+      summary: Exchange a mobile OIDC code for a session token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileTokenExchangeRequest'
+      responses:
+        '200':
+          description: Session created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileTokenExchangeSuccess'
+        '400':
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Token did not contain usable claims.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Token exchange failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /mobile-auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logoutMobileSession
+      summary: Delete a mobile session token
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+      responses:
+        '200':
+          description: Logout processed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutSuccess'
+
+  /demos:
+    get:
+      tags: [demos]
+      operationId: getDemos
+      summary: List all demos for the authenticated user
+      responses:
+        '200':
+          description: List of demos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Demo'
+        '401':
+          description: Unauthorized
+    post:
+      tags: [demos]
+      operationId: createDemo
+      summary: Create a new demo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDemoBody'
+      responses:
+        '201':
+          description: Created demo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Demo'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthorized
+
+  /demos/{id}:
+    get:
+      tags: [demos]
+      operationId: getDemo
+      summary: Get a single demo by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Demo found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Demo'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthorized
+    patch:
+      tags: [demos]
+      operationId: updateDemo
+      summary: Update a demo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDemoBody'
+      responses:
+        '200':
+          description: Updated demo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Demo'
+        '404':
+          description: Not found
+        '401':
+          description: Unauthorized
+    delete:
+      tags: [demos]
+      operationId: deleteDemo
+      summary: Delete a demo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+        '404':
+          description: Not found
+        '401':
+          description: Unauthorized
+
+  /demos/{id}/regenerate-slug:
+    post:
+      tags: [demos]
+      operationId: regenerateDemoSlug
+      summary: Regenerate the demo's public URL slug
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: New slug generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Demo'
+        '404':
+          description: Not found
+        '401':
+          description: Unauthorized
+
+  /dashboard/stats:
+    get:
+      tags: [demos]
+      operationId: getDashboardStats
+      summary: Get aggregated dashboard metrics
+      responses:
+        '200':
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+        '401':
+          description: Unauthorized
+
+  /settings:
+    get:
+      tags: [settings]
+      operationId: getSettings
+      summary: Get agency settings for the authenticated user
+      responses:
+        '200':
+          description: Agency settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgencySettings'
+        '401':
+          description: Unauthorized
+    patch:
+      tags: [settings]
+      operationId: updateSettings
+      summary: Update agency settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSettingsBody'
+      responses:
+        '200':
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgencySettings'
+        '401':
+          description: Unauthorized
+
+  /public/demo/{slug}:
+    get:
+      tags: [public]
+      operationId: getPublicDemo
+      summary: Get public demo data by slug (unauthenticated)
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Public demo data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicDemo'
+        '404':
+          description: Demo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /public/demo/{slug}/view:
+    post:
+      tags: [public]
+      operationId: trackDemoView
+      summary: Track a demo page view
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tracked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+
+  /public/demo/{slug}/call-click:
+    post:
+      tags: [public]
+      operationId: trackDemoCallClick
+      summary: Track a call button click
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tracked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+
+  /public/demo/{slug}/calendar-click:
+    post:
+      tags: [public]
+      operationId: trackDemoCalendarClick
+      summary: Track a calendar/book-call click
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tracked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+
+  /public/demo/{slug}/website-open-click:
+    post:
+      tags: [public]
+      operationId: trackDemoWebsiteOpenClick
+      summary: Track an open-website button click
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tracked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+
 components:
+  parameters:
+    AuthorizationSessionHeader:
+      name: Authorization
+      in: header
+      required: false
+      description: Opaque session token — `Bearer <sid>`.
+      schema:
+        type: string
+    SessionCookie:
+      name: sid
+      in: cookie
+      required: false
+      description: Browser session cookie.
+      schema:
+        type: string
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +466,350 @@ components:
       required:
         - status
 
+    AuthUser:
+      type: object
+      required: [id, email, firstName, lastName, profileImageUrl]
+      properties:
+        id:
+          type: string
+        email:
+          type: [string, 'null']
+          format: email
+        firstName:
+          type: [string, 'null']
+        lastName:
+          type: [string, 'null']
+        profileImageUrl:
+          type: [string, 'null']
+    AuthUserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          oneOf:
+            - $ref: '#/components/schemas/AuthUser'
+            - type: 'null'
+    MobileTokenExchangeRequest:
+      type: object
+      required: [code, code_verifier, redirect_uri, state]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        code_verifier:
+          type: string
+          minLength: 1
+        redirect_uri:
+          type: string
+          minLength: 1
+          format: uri
+        state:
+          type: string
+          minLength: 1
+        nonce:
+          type: string
+          minLength: 1
+    MobileTokenExchangeSuccess:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+    LogoutSuccess:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    SuccessEnvelope:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+
+    Demo:
+      type: object
+      required:
+        - id
+        - userId
+        - companyName
+        - slug
+        - websiteUrl
+        - status
+        - viewCount
+        - callClickCount
+        - calendarClickCount
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        companyName:
+          type: string
+        slug:
+          type: string
+        websiteUrl:
+          type: string
+        industry:
+          type: [string, 'null']
+        contactName:
+          type: [string, 'null']
+        contactEmail:
+          type: [string, 'null']
+        contactPhone:
+          type: [string, 'null']
+        voiceAiPhoneNumber:
+          type: [string, 'null']
+        voicePersonaName:
+          type: [string, 'null']
+        voiceAiGoal:
+          type: [string, 'null']
+        ctaCalendarLink:
+          type: [string, 'null']
+        chatWidgetId:
+          type: [string, 'null']
+        chatPersonaName:
+          type: [string, 'null']
+        companyDescription:
+          type: [string, 'null']
+        servicesOffered:
+          type: [string, 'null']
+        serviceArea:
+          type: [string, 'null']
+        customDemoMessage:
+          type: [string, 'null']
+        internalNotes:
+          type: [string, 'null']
+        status:
+          type: string
+          enum: [active, inactive, draft]
+        viewCount:
+          type: integer
+        callClickCount:
+          type: integer
+        calendarClickCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateDemoBody:
+      type: object
+      required:
+        - companyName
+        - websiteUrl
+      properties:
+        companyName:
+          type: string
+          minLength: 1
+        websiteUrl:
+          type: string
+        industry:
+          type: [string, 'null']
+        contactName:
+          type: [string, 'null']
+        contactEmail:
+          type: [string, 'null']
+        contactPhone:
+          type: [string, 'null']
+        voiceAiPhoneNumber:
+          type: [string, 'null']
+        voicePersonaName:
+          type: [string, 'null']
+        voiceAiGoal:
+          type: [string, 'null']
+        ctaCalendarLink:
+          type: [string, 'null']
+        chatWidgetId:
+          type: [string, 'null']
+        chatPersonaName:
+          type: [string, 'null']
+        companyDescription:
+          type: [string, 'null']
+        servicesOffered:
+          type: [string, 'null']
+        serviceArea:
+          type: [string, 'null']
+        customDemoMessage:
+          type: [string, 'null']
+        internalNotes:
+          type: [string, 'null']
+        status:
+          type: string
+          enum: [active, inactive, draft]
+
+    UpdateDemoBody:
+      type: object
+      properties:
+        companyName:
+          type: [string, 'null']
+        websiteUrl:
+          type: [string, 'null']
+        industry:
+          type: [string, 'null']
+        contactName:
+          type: [string, 'null']
+        contactEmail:
+          type: [string, 'null']
+        contactPhone:
+          type: [string, 'null']
+        voiceAiPhoneNumber:
+          type: [string, 'null']
+        voicePersonaName:
+          type: [string, 'null']
+        voiceAiGoal:
+          type: [string, 'null']
+        ctaCalendarLink:
+          type: [string, 'null']
+        chatWidgetId:
+          type: [string, 'null']
+        chatPersonaName:
+          type: [string, 'null']
+        companyDescription:
+          type: [string, 'null']
+        servicesOffered:
+          type: [string, 'null']
+        serviceArea:
+          type: [string, 'null']
+        customDemoMessage:
+          type: [string, 'null']
+        internalNotes:
+          type: [string, 'null']
+        status:
+          type: [string, 'null']
+          enum: [active, inactive, draft, null]
+
+    AgencySettings:
+      type: object
+      required:
+        - id
+        - userId
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        agencyName:
+          type: [string, 'null']
+        agencyWebsite:
+          type: [string, 'null']
+        agencyLogoUrl:
+          type: [string, 'null']
+        primaryBrandColor:
+          type: [string, 'null']
+        secondaryBrandColor:
+          type: [string, 'null']
+        defaultVoiceAiPhone:
+          type: [string, 'null']
+        defaultVoicePersonaName:
+          type: [string, 'null']
+        defaultCalendarLink:
+          type: [string, 'null']
+        defaultGhlWidgetId:
+          type: [string, 'null']
+        defaultChatPersonaName:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UpdateSettingsBody:
+      type: object
+      properties:
+        agencyName:
+          type: [string, 'null']
+        agencyWebsite:
+          type: [string, 'null']
+        agencyLogoUrl:
+          type: [string, 'null']
+        primaryBrandColor:
+          type: [string, 'null']
+        secondaryBrandColor:
+          type: [string, 'null']
+        defaultVoiceAiPhone:
+          type: [string, 'null']
+        defaultVoicePersonaName:
+          type: [string, 'null']
+        defaultCalendarLink:
+          type: [string, 'null']
+        defaultGhlWidgetId:
+          type: [string, 'null']
+        defaultChatPersonaName:
+          type: [string, 'null']
+
+    DashboardStats:
+      type: object
+      required:
+        - totalDemos
+        - activeDemos
+        - totalViews
+        - totalCallClicks
+        - totalCalendarClicks
+      properties:
+        totalDemos:
+          type: integer
+        activeDemos:
+          type: integer
+        totalViews:
+          type: integer
+        totalCallClicks:
+          type: integer
+        totalCalendarClicks:
+          type: integer
+
+    PublicDemo:
+      type: object
+      required:
+        - id
+        - companyName
+        - slug
+        - websiteUrl
+        - status
+        - resolvedChatWidgetId
+        - widgetSource
+      properties:
+        id:
+          type: string
+        companyName:
+          type: string
+        slug:
+          type: string
+        websiteUrl:
+          type: string
+        industry:
+          type: [string, 'null']
+        voiceAiPhoneNumber:
+          type: [string, 'null']
+        voicePersonaName:
+          type: [string, 'null']
+        ctaCalendarLink:
+          type: [string, 'null']
+        chatPersonaName:
+          type: [string, 'null']
+        customDemoMessage:
+          type: [string, 'null']
+        status:
+          type: string
+        resolvedChatWidgetId:
+          type: string
+        widgetSource:
+          type: string
+          enum: [demo_override, global_default, hardcoded_fallback]
