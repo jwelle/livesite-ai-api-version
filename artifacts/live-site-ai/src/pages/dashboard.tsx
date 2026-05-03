@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart3, Globe, Phone, Calendar, Plus, Eye, Edit, Trash2, Link as LinkIcon, MoreHorizontal } from "lucide-react";
+import { BarChart3, Globe, Phone, Calendar, Plus, Eye, Edit, Trash2, Link as LinkIcon, MoreHorizontal, ExternalLink, Copy } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -111,12 +111,35 @@ export default function Dashboard() {
                       <TableCell className="text-right">{demo.callClickCount}</TableCell>
                       <TableCell>{format(new Date(demo.createdAt), "MMM d, yyyy")}</TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0" data-testid={`btn-demo-actions-${demo.id}`}>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 gap-1.5"
+                            onClick={() => copyToClipboard(demo.slug)}
+                            data-testid={`btn-copy-url-${demo.id}`}
+                            title="Copy demo URL"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline text-xs">Copy URL</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 gap-1.5 text-primary hover:text-primary"
+                            onClick={() => window.open(`/demo/${demo.slug}`, "_blank")}
+                            data-testid={`btn-launch-${demo.id}`}
+                            title="Launch demo in new tab"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline text-xs">Launch</span>
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0" data-testid={`btn-demo-actions-${demo.id}`}>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem asChild>
                               <Link href={`/demos/${demo.id}`}>
@@ -139,7 +162,8 @@ export default function Dashboard() {
                               <span>Delete</span>
                             </DropdownMenuItem>
                           </DropdownMenuContent>
-                        </DropdownMenu>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
