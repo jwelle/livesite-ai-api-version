@@ -126,6 +126,10 @@ export const GetDemosResponseItem = zod.object({
   voiceAiPhoneNumber: zod.string().nullish(),
   voicePersonaName: zod.string().nullish(),
   voiceAiGoal: zod.string().nullish(),
+  desiredTone: zod.string().nullish(),
+  primaryCta: zod.string().nullish(),
+  optionalNotes: zod.string().nullish(),
+  ghlVoiceAgentId: zod.string().nullish(),
   ctaCalendarLink: zod.string().nullish(),
   chatWidgetId: zod.string().nullish(),
   chatPersonaName: zod.string().nullish(),
@@ -134,7 +138,72 @@ export const GetDemosResponseItem = zod.object({
   serviceArea: zod.string().nullish(),
   customDemoMessage: zod.string().nullish(),
   internalNotes: zod.string().nullish(),
-  status: zod.enum(["active", "inactive", "draft"]),
+  businessProfile: zod
+    .union([
+      zod.object({
+        businessName: zod.string().nullish(),
+        websiteUrl: zod.string().nullish(),
+        industry: zod.string().nullish(),
+        summary: zod.string().nullish(),
+        services: zod.array(zod.string()).optional(),
+        serviceArea: zod.string().nullish(),
+        phone: zod.string().nullish(),
+        hours: zod.string().nullish(),
+        differentiators: zod.array(zod.string()).optional(),
+        customerTypes: zod.array(zod.string()).optional(),
+        commonQuestions: zod.array(zod.string()).optional(),
+        sourceNotes: zod
+          .array(
+            zod.object({
+              title: zod.string().optional(),
+              url: zod.string().optional(),
+              note: zod.string().optional(),
+            }),
+          )
+          .optional(),
+        unknowns: zod.array(zod.string()).optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  voiceAgentPackage: zod
+    .union([
+      zod.object({
+        agentName: zod.string().nullish(),
+        agentRole: zod.string().nullish(),
+        tone: zod.string().nullish(),
+        conversationGoal: zod.string().nullish(),
+        openingScript: zod.string().nullish(),
+        qualificationQuestions: zod.array(zod.string()).optional(),
+        objectionHandlers: zod
+          .array(
+            zod.object({
+              objection: zod.string().optional(),
+              response: zod.string().optional(),
+            }),
+          )
+          .optional(),
+        escalationRules: zod.array(zod.string()).optional(),
+        bookingInstructions: zod.string().nullish(),
+        complianceBoundaries: zod.array(zod.string()).optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  aiGeneratedPrompt: zod.string().nullish(),
+  currentWorkingPrompt: zod.string().nullish(),
+  finalSavedPrompt: zod.string().nullish(),
+  status: zod.enum([
+    "active",
+    "inactive",
+    "draft",
+    "enriched",
+    "edited",
+    "approved",
+    "copied",
+    "pushed_to_ghl",
+    "failed",
+  ]),
   viewCount: zod.number(),
   callClickCount: zod.number(),
   calendarClickCount: zod.number(),
@@ -157,6 +226,10 @@ export const CreateDemoBody = zod.object({
   voiceAiPhoneNumber: zod.string().nullish(),
   voicePersonaName: zod.string().nullish(),
   voiceAiGoal: zod.string().nullish(),
+  desiredTone: zod.string().nullish(),
+  primaryCta: zod.string().nullish(),
+  optionalNotes: zod.string().nullish(),
+  ghlVoiceAgentId: zod.string().nullish(),
   ctaCalendarLink: zod.string().nullish(),
   chatWidgetId: zod.string().nullish(),
   chatPersonaName: zod.string().nullish(),
@@ -165,7 +238,19 @@ export const CreateDemoBody = zod.object({
   serviceArea: zod.string().nullish(),
   customDemoMessage: zod.string().nullish(),
   internalNotes: zod.string().nullish(),
-  status: zod.enum(["active", "inactive", "draft"]).optional(),
+  status: zod
+    .enum([
+      "active",
+      "inactive",
+      "draft",
+      "enriched",
+      "edited",
+      "approved",
+      "copied",
+      "pushed_to_ghl",
+      "failed",
+    ])
+    .optional(),
 });
 
 /**
@@ -188,6 +273,10 @@ export const GetDemoResponse = zod.object({
   voiceAiPhoneNumber: zod.string().nullish(),
   voicePersonaName: zod.string().nullish(),
   voiceAiGoal: zod.string().nullish(),
+  desiredTone: zod.string().nullish(),
+  primaryCta: zod.string().nullish(),
+  optionalNotes: zod.string().nullish(),
+  ghlVoiceAgentId: zod.string().nullish(),
   ctaCalendarLink: zod.string().nullish(),
   chatWidgetId: zod.string().nullish(),
   chatPersonaName: zod.string().nullish(),
@@ -196,7 +285,72 @@ export const GetDemoResponse = zod.object({
   serviceArea: zod.string().nullish(),
   customDemoMessage: zod.string().nullish(),
   internalNotes: zod.string().nullish(),
-  status: zod.enum(["active", "inactive", "draft"]),
+  businessProfile: zod
+    .union([
+      zod.object({
+        businessName: zod.string().nullish(),
+        websiteUrl: zod.string().nullish(),
+        industry: zod.string().nullish(),
+        summary: zod.string().nullish(),
+        services: zod.array(zod.string()).optional(),
+        serviceArea: zod.string().nullish(),
+        phone: zod.string().nullish(),
+        hours: zod.string().nullish(),
+        differentiators: zod.array(zod.string()).optional(),
+        customerTypes: zod.array(zod.string()).optional(),
+        commonQuestions: zod.array(zod.string()).optional(),
+        sourceNotes: zod
+          .array(
+            zod.object({
+              title: zod.string().optional(),
+              url: zod.string().optional(),
+              note: zod.string().optional(),
+            }),
+          )
+          .optional(),
+        unknowns: zod.array(zod.string()).optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  voiceAgentPackage: zod
+    .union([
+      zod.object({
+        agentName: zod.string().nullish(),
+        agentRole: zod.string().nullish(),
+        tone: zod.string().nullish(),
+        conversationGoal: zod.string().nullish(),
+        openingScript: zod.string().nullish(),
+        qualificationQuestions: zod.array(zod.string()).optional(),
+        objectionHandlers: zod
+          .array(
+            zod.object({
+              objection: zod.string().optional(),
+              response: zod.string().optional(),
+            }),
+          )
+          .optional(),
+        escalationRules: zod.array(zod.string()).optional(),
+        bookingInstructions: zod.string().nullish(),
+        complianceBoundaries: zod.array(zod.string()).optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  aiGeneratedPrompt: zod.string().nullish(),
+  currentWorkingPrompt: zod.string().nullish(),
+  finalSavedPrompt: zod.string().nullish(),
+  status: zod.enum([
+    "active",
+    "inactive",
+    "draft",
+    "enriched",
+    "edited",
+    "approved",
+    "copied",
+    "pushed_to_ghl",
+    "failed",
+  ]),
   viewCount: zod.number(),
   callClickCount: zod.number(),
   calendarClickCount: zod.number(),
@@ -221,6 +375,10 @@ export const UpdateDemoBody = zod.object({
   voiceAiPhoneNumber: zod.string().nullish(),
   voicePersonaName: zod.string().nullish(),
   voiceAiGoal: zod.string().nullish(),
+  desiredTone: zod.string().nullish(),
+  primaryCta: zod.string().nullish(),
+  optionalNotes: zod.string().nullish(),
+  ghlVoiceAgentId: zod.string().nullish(),
   ctaCalendarLink: zod.string().nullish(),
   chatWidgetId: zod.string().nullish(),
   chatPersonaName: zod.string().nullish(),
@@ -229,11 +387,71 @@ export const UpdateDemoBody = zod.object({
   serviceArea: zod.string().nullish(),
   customDemoMessage: zod.string().nullish(),
   internalNotes: zod.string().nullish(),
+  businessProfile: zod
+    .union([
+      zod.object({
+        businessName: zod.string().nullish(),
+        websiteUrl: zod.string().nullish(),
+        industry: zod.string().nullish(),
+        summary: zod.string().nullish(),
+        services: zod.array(zod.string()).optional(),
+        serviceArea: zod.string().nullish(),
+        phone: zod.string().nullish(),
+        hours: zod.string().nullish(),
+        differentiators: zod.array(zod.string()).optional(),
+        customerTypes: zod.array(zod.string()).optional(),
+        commonQuestions: zod.array(zod.string()).optional(),
+        sourceNotes: zod
+          .array(
+            zod.object({
+              title: zod.string().optional(),
+              url: zod.string().optional(),
+              note: zod.string().optional(),
+            }),
+          )
+          .optional(),
+        unknowns: zod.array(zod.string()).optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  voiceAgentPackage: zod
+    .union([
+      zod.object({
+        agentName: zod.string().nullish(),
+        agentRole: zod.string().nullish(),
+        tone: zod.string().nullish(),
+        conversationGoal: zod.string().nullish(),
+        openingScript: zod.string().nullish(),
+        qualificationQuestions: zod.array(zod.string()).optional(),
+        objectionHandlers: zod
+          .array(
+            zod.object({
+              objection: zod.string().optional(),
+              response: zod.string().optional(),
+            }),
+          )
+          .optional(),
+        escalationRules: zod.array(zod.string()).optional(),
+        bookingInstructions: zod.string().nullish(),
+        complianceBoundaries: zod.array(zod.string()).optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  currentWorkingPrompt: zod.string().nullish(),
+  finalSavedPrompt: zod.string().nullish(),
   status: zod
     .union([
       zod.literal("active"),
       zod.literal("inactive"),
       zod.literal("draft"),
+      zod.literal("enriched"),
+      zod.literal("edited"),
+      zod.literal("approved"),
+      zod.literal("copied"),
+      zod.literal("pushed_to_ghl"),
+      zod.literal("failed"),
       zod.literal(null),
     ])
     .nullish(),
@@ -252,6 +470,10 @@ export const UpdateDemoResponse = zod.object({
   voiceAiPhoneNumber: zod.string().nullish(),
   voicePersonaName: zod.string().nullish(),
   voiceAiGoal: zod.string().nullish(),
+  desiredTone: zod.string().nullish(),
+  primaryCta: zod.string().nullish(),
+  optionalNotes: zod.string().nullish(),
+  ghlVoiceAgentId: zod.string().nullish(),
   ctaCalendarLink: zod.string().nullish(),
   chatWidgetId: zod.string().nullish(),
   chatPersonaName: zod.string().nullish(),
@@ -260,7 +482,72 @@ export const UpdateDemoResponse = zod.object({
   serviceArea: zod.string().nullish(),
   customDemoMessage: zod.string().nullish(),
   internalNotes: zod.string().nullish(),
-  status: zod.enum(["active", "inactive", "draft"]),
+  businessProfile: zod
+    .union([
+      zod.object({
+        businessName: zod.string().nullish(),
+        websiteUrl: zod.string().nullish(),
+        industry: zod.string().nullish(),
+        summary: zod.string().nullish(),
+        services: zod.array(zod.string()).optional(),
+        serviceArea: zod.string().nullish(),
+        phone: zod.string().nullish(),
+        hours: zod.string().nullish(),
+        differentiators: zod.array(zod.string()).optional(),
+        customerTypes: zod.array(zod.string()).optional(),
+        commonQuestions: zod.array(zod.string()).optional(),
+        sourceNotes: zod
+          .array(
+            zod.object({
+              title: zod.string().optional(),
+              url: zod.string().optional(),
+              note: zod.string().optional(),
+            }),
+          )
+          .optional(),
+        unknowns: zod.array(zod.string()).optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  voiceAgentPackage: zod
+    .union([
+      zod.object({
+        agentName: zod.string().nullish(),
+        agentRole: zod.string().nullish(),
+        tone: zod.string().nullish(),
+        conversationGoal: zod.string().nullish(),
+        openingScript: zod.string().nullish(),
+        qualificationQuestions: zod.array(zod.string()).optional(),
+        objectionHandlers: zod
+          .array(
+            zod.object({
+              objection: zod.string().optional(),
+              response: zod.string().optional(),
+            }),
+          )
+          .optional(),
+        escalationRules: zod.array(zod.string()).optional(),
+        bookingInstructions: zod.string().nullish(),
+        complianceBoundaries: zod.array(zod.string()).optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  aiGeneratedPrompt: zod.string().nullish(),
+  currentWorkingPrompt: zod.string().nullish(),
+  finalSavedPrompt: zod.string().nullish(),
+  status: zod.enum([
+    "active",
+    "inactive",
+    "draft",
+    "enriched",
+    "edited",
+    "approved",
+    "copied",
+    "pushed_to_ghl",
+    "failed",
+  ]),
   viewCount: zod.number(),
   callClickCount: zod.number(),
   calendarClickCount: zod.number(),
@@ -299,6 +586,10 @@ export const RegenerateDemoSlugResponse = zod.object({
   voiceAiPhoneNumber: zod.string().nullish(),
   voicePersonaName: zod.string().nullish(),
   voiceAiGoal: zod.string().nullish(),
+  desiredTone: zod.string().nullish(),
+  primaryCta: zod.string().nullish(),
+  optionalNotes: zod.string().nullish(),
+  ghlVoiceAgentId: zod.string().nullish(),
   ctaCalendarLink: zod.string().nullish(),
   chatWidgetId: zod.string().nullish(),
   chatPersonaName: zod.string().nullish(),
@@ -307,12 +598,489 @@ export const RegenerateDemoSlugResponse = zod.object({
   serviceArea: zod.string().nullish(),
   customDemoMessage: zod.string().nullish(),
   internalNotes: zod.string().nullish(),
-  status: zod.enum(["active", "inactive", "draft"]),
+  businessProfile: zod
+    .union([
+      zod.object({
+        businessName: zod.string().nullish(),
+        websiteUrl: zod.string().nullish(),
+        industry: zod.string().nullish(),
+        summary: zod.string().nullish(),
+        services: zod.array(zod.string()).optional(),
+        serviceArea: zod.string().nullish(),
+        phone: zod.string().nullish(),
+        hours: zod.string().nullish(),
+        differentiators: zod.array(zod.string()).optional(),
+        customerTypes: zod.array(zod.string()).optional(),
+        commonQuestions: zod.array(zod.string()).optional(),
+        sourceNotes: zod
+          .array(
+            zod.object({
+              title: zod.string().optional(),
+              url: zod.string().optional(),
+              note: zod.string().optional(),
+            }),
+          )
+          .optional(),
+        unknowns: zod.array(zod.string()).optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  voiceAgentPackage: zod
+    .union([
+      zod.object({
+        agentName: zod.string().nullish(),
+        agentRole: zod.string().nullish(),
+        tone: zod.string().nullish(),
+        conversationGoal: zod.string().nullish(),
+        openingScript: zod.string().nullish(),
+        qualificationQuestions: zod.array(zod.string()).optional(),
+        objectionHandlers: zod
+          .array(
+            zod.object({
+              objection: zod.string().optional(),
+              response: zod.string().optional(),
+            }),
+          )
+          .optional(),
+        escalationRules: zod.array(zod.string()).optional(),
+        bookingInstructions: zod.string().nullish(),
+        complianceBoundaries: zod.array(zod.string()).optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  aiGeneratedPrompt: zod.string().nullish(),
+  currentWorkingPrompt: zod.string().nullish(),
+  finalSavedPrompt: zod.string().nullish(),
+  status: zod.enum([
+    "active",
+    "inactive",
+    "draft",
+    "enriched",
+    "edited",
+    "approved",
+    "copied",
+    "pushed_to_ghl",
+    "failed",
+  ]),
   viewCount: zod.number(),
   callClickCount: zod.number(),
   calendarClickCount: zod.number(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Run OpenAI web-search enrichment for a business (no save)
+ */
+
+export const EnrichBusinessBody = zod.object({
+  businessName: zod.string().min(1),
+  websiteUrl: zod.string().min(1),
+  industry: zod.string().nullish(),
+  agentGoal: zod.string().min(1),
+  tone: zod.string().nullish(),
+  primaryCta: zod.string().nullish(),
+  optionalNotes: zod.string().nullish(),
+});
+
+export const EnrichBusinessResponse = zod.object({
+  success: zod.boolean(),
+  limitedResults: zod.boolean().optional(),
+  businessProfile: zod.object({
+    businessName: zod.string().nullish(),
+    websiteUrl: zod.string().nullish(),
+    industry: zod.string().nullish(),
+    summary: zod.string().nullish(),
+    services: zod.array(zod.string()).optional(),
+    serviceArea: zod.string().nullish(),
+    phone: zod.string().nullish(),
+    hours: zod.string().nullish(),
+    differentiators: zod.array(zod.string()).optional(),
+    customerTypes: zod.array(zod.string()).optional(),
+    commonQuestions: zod.array(zod.string()).optional(),
+    sourceNotes: zod
+      .array(
+        zod.object({
+          title: zod.string().optional(),
+          url: zod.string().optional(),
+          note: zod.string().optional(),
+        }),
+      )
+      .optional(),
+    unknowns: zod.array(zod.string()).optional(),
+  }),
+  voiceAgentPackage: zod.object({
+    agentName: zod.string().nullish(),
+    agentRole: zod.string().nullish(),
+    tone: zod.string().nullish(),
+    conversationGoal: zod.string().nullish(),
+    openingScript: zod.string().nullish(),
+    qualificationQuestions: zod.array(zod.string()).optional(),
+    objectionHandlers: zod
+      .array(
+        zod.object({
+          objection: zod.string().optional(),
+          response: zod.string().optional(),
+        }),
+      )
+      .optional(),
+    escalationRules: zod.array(zod.string()).optional(),
+    bookingInstructions: zod.string().nullish(),
+    complianceBoundaries: zod.array(zod.string()).optional(),
+  }),
+  aiGeneratedPrompt: zod.string(),
+});
+
+/**
+ * @summary Run enrichment and persist to a demo
+ */
+export const EnrichDemoParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const EnrichDemoResponse = zod.object({
+  id: zod.string(),
+  userId: zod.string(),
+  companyName: zod.string(),
+  slug: zod.string(),
+  websiteUrl: zod.string(),
+  industry: zod.string().nullish(),
+  contactName: zod.string().nullish(),
+  contactEmail: zod.string().nullish(),
+  contactPhone: zod.string().nullish(),
+  voiceAiPhoneNumber: zod.string().nullish(),
+  voicePersonaName: zod.string().nullish(),
+  voiceAiGoal: zod.string().nullish(),
+  desiredTone: zod.string().nullish(),
+  primaryCta: zod.string().nullish(),
+  optionalNotes: zod.string().nullish(),
+  ghlVoiceAgentId: zod.string().nullish(),
+  ctaCalendarLink: zod.string().nullish(),
+  chatWidgetId: zod.string().nullish(),
+  chatPersonaName: zod.string().nullish(),
+  companyDescription: zod.string().nullish(),
+  servicesOffered: zod.string().nullish(),
+  serviceArea: zod.string().nullish(),
+  customDemoMessage: zod.string().nullish(),
+  internalNotes: zod.string().nullish(),
+  businessProfile: zod
+    .union([
+      zod.object({
+        businessName: zod.string().nullish(),
+        websiteUrl: zod.string().nullish(),
+        industry: zod.string().nullish(),
+        summary: zod.string().nullish(),
+        services: zod.array(zod.string()).optional(),
+        serviceArea: zod.string().nullish(),
+        phone: zod.string().nullish(),
+        hours: zod.string().nullish(),
+        differentiators: zod.array(zod.string()).optional(),
+        customerTypes: zod.array(zod.string()).optional(),
+        commonQuestions: zod.array(zod.string()).optional(),
+        sourceNotes: zod
+          .array(
+            zod.object({
+              title: zod.string().optional(),
+              url: zod.string().optional(),
+              note: zod.string().optional(),
+            }),
+          )
+          .optional(),
+        unknowns: zod.array(zod.string()).optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  voiceAgentPackage: zod
+    .union([
+      zod.object({
+        agentName: zod.string().nullish(),
+        agentRole: zod.string().nullish(),
+        tone: zod.string().nullish(),
+        conversationGoal: zod.string().nullish(),
+        openingScript: zod.string().nullish(),
+        qualificationQuestions: zod.array(zod.string()).optional(),
+        objectionHandlers: zod
+          .array(
+            zod.object({
+              objection: zod.string().optional(),
+              response: zod.string().optional(),
+            }),
+          )
+          .optional(),
+        escalationRules: zod.array(zod.string()).optional(),
+        bookingInstructions: zod.string().nullish(),
+        complianceBoundaries: zod.array(zod.string()).optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  aiGeneratedPrompt: zod.string().nullish(),
+  currentWorkingPrompt: zod.string().nullish(),
+  finalSavedPrompt: zod.string().nullish(),
+  status: zod.enum([
+    "active",
+    "inactive",
+    "draft",
+    "enriched",
+    "edited",
+    "approved",
+    "copied",
+    "pushed_to_ghl",
+    "failed",
+  ]),
+  viewCount: zod.number(),
+  callClickCount: zod.number(),
+  calendarClickCount: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Regenerate the AI prompt for a demo
+ */
+export const RegenerateDemoPromptParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const RegenerateDemoPromptResponse = zod.object({
+  id: zod.string(),
+  userId: zod.string(),
+  companyName: zod.string(),
+  slug: zod.string(),
+  websiteUrl: zod.string(),
+  industry: zod.string().nullish(),
+  contactName: zod.string().nullish(),
+  contactEmail: zod.string().nullish(),
+  contactPhone: zod.string().nullish(),
+  voiceAiPhoneNumber: zod.string().nullish(),
+  voicePersonaName: zod.string().nullish(),
+  voiceAiGoal: zod.string().nullish(),
+  desiredTone: zod.string().nullish(),
+  primaryCta: zod.string().nullish(),
+  optionalNotes: zod.string().nullish(),
+  ghlVoiceAgentId: zod.string().nullish(),
+  ctaCalendarLink: zod.string().nullish(),
+  chatWidgetId: zod.string().nullish(),
+  chatPersonaName: zod.string().nullish(),
+  companyDescription: zod.string().nullish(),
+  servicesOffered: zod.string().nullish(),
+  serviceArea: zod.string().nullish(),
+  customDemoMessage: zod.string().nullish(),
+  internalNotes: zod.string().nullish(),
+  businessProfile: zod
+    .union([
+      zod.object({
+        businessName: zod.string().nullish(),
+        websiteUrl: zod.string().nullish(),
+        industry: zod.string().nullish(),
+        summary: zod.string().nullish(),
+        services: zod.array(zod.string()).optional(),
+        serviceArea: zod.string().nullish(),
+        phone: zod.string().nullish(),
+        hours: zod.string().nullish(),
+        differentiators: zod.array(zod.string()).optional(),
+        customerTypes: zod.array(zod.string()).optional(),
+        commonQuestions: zod.array(zod.string()).optional(),
+        sourceNotes: zod
+          .array(
+            zod.object({
+              title: zod.string().optional(),
+              url: zod.string().optional(),
+              note: zod.string().optional(),
+            }),
+          )
+          .optional(),
+        unknowns: zod.array(zod.string()).optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  voiceAgentPackage: zod
+    .union([
+      zod.object({
+        agentName: zod.string().nullish(),
+        agentRole: zod.string().nullish(),
+        tone: zod.string().nullish(),
+        conversationGoal: zod.string().nullish(),
+        openingScript: zod.string().nullish(),
+        qualificationQuestions: zod.array(zod.string()).optional(),
+        objectionHandlers: zod
+          .array(
+            zod.object({
+              objection: zod.string().optional(),
+              response: zod.string().optional(),
+            }),
+          )
+          .optional(),
+        escalationRules: zod.array(zod.string()).optional(),
+        bookingInstructions: zod.string().nullish(),
+        complianceBoundaries: zod.array(zod.string()).optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  aiGeneratedPrompt: zod.string().nullish(),
+  currentWorkingPrompt: zod.string().nullish(),
+  finalSavedPrompt: zod.string().nullish(),
+  status: zod.enum([
+    "active",
+    "inactive",
+    "draft",
+    "enriched",
+    "edited",
+    "approved",
+    "copied",
+    "pushed_to_ghl",
+    "failed",
+  ]),
+  viewCount: zod.number(),
+  callClickCount: zod.number(),
+  calendarClickCount: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Record that the user copied the working prompt
+ */
+export const LogDemoCopyEventParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const LogDemoCopyEventResponse = zod.object({
+  id: zod.string(),
+  userId: zod.string(),
+  companyName: zod.string(),
+  slug: zod.string(),
+  websiteUrl: zod.string(),
+  industry: zod.string().nullish(),
+  contactName: zod.string().nullish(),
+  contactEmail: zod.string().nullish(),
+  contactPhone: zod.string().nullish(),
+  voiceAiPhoneNumber: zod.string().nullish(),
+  voicePersonaName: zod.string().nullish(),
+  voiceAiGoal: zod.string().nullish(),
+  desiredTone: zod.string().nullish(),
+  primaryCta: zod.string().nullish(),
+  optionalNotes: zod.string().nullish(),
+  ghlVoiceAgentId: zod.string().nullish(),
+  ctaCalendarLink: zod.string().nullish(),
+  chatWidgetId: zod.string().nullish(),
+  chatPersonaName: zod.string().nullish(),
+  companyDescription: zod.string().nullish(),
+  servicesOffered: zod.string().nullish(),
+  serviceArea: zod.string().nullish(),
+  customDemoMessage: zod.string().nullish(),
+  internalNotes: zod.string().nullish(),
+  businessProfile: zod
+    .union([
+      zod.object({
+        businessName: zod.string().nullish(),
+        websiteUrl: zod.string().nullish(),
+        industry: zod.string().nullish(),
+        summary: zod.string().nullish(),
+        services: zod.array(zod.string()).optional(),
+        serviceArea: zod.string().nullish(),
+        phone: zod.string().nullish(),
+        hours: zod.string().nullish(),
+        differentiators: zod.array(zod.string()).optional(),
+        customerTypes: zod.array(zod.string()).optional(),
+        commonQuestions: zod.array(zod.string()).optional(),
+        sourceNotes: zod
+          .array(
+            zod.object({
+              title: zod.string().optional(),
+              url: zod.string().optional(),
+              note: zod.string().optional(),
+            }),
+          )
+          .optional(),
+        unknowns: zod.array(zod.string()).optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  voiceAgentPackage: zod
+    .union([
+      zod.object({
+        agentName: zod.string().nullish(),
+        agentRole: zod.string().nullish(),
+        tone: zod.string().nullish(),
+        conversationGoal: zod.string().nullish(),
+        openingScript: zod.string().nullish(),
+        qualificationQuestions: zod.array(zod.string()).optional(),
+        objectionHandlers: zod
+          .array(
+            zod.object({
+              objection: zod.string().optional(),
+              response: zod.string().optional(),
+            }),
+          )
+          .optional(),
+        escalationRules: zod.array(zod.string()).optional(),
+        bookingInstructions: zod.string().nullish(),
+        complianceBoundaries: zod.array(zod.string()).optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  aiGeneratedPrompt: zod.string().nullish(),
+  currentWorkingPrompt: zod.string().nullish(),
+  finalSavedPrompt: zod.string().nullish(),
+  status: zod.enum([
+    "active",
+    "inactive",
+    "draft",
+    "enriched",
+    "edited",
+    "approved",
+    "copied",
+    "pushed_to_ghl",
+    "failed",
+  ]),
+  viewCount: zod.number(),
+  callClickCount: zod.number(),
+  calendarClickCount: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Export the current working prompt as Markdown
+ */
+export const ExportDemoMarkdownParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
+ * @summary Export the business profile and prompts as JSON
+ */
+export const ExportDemoJsonParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ExportDemoJsonResponse = zod.object({}).passthrough();
+
+/**
+ * @summary Placeholder GHL push
+ */
+export const PushDemoToGhlParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const PushDemoToGhlResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+});
+
+/**
+ * @summary Whether the server has an OpenAI key configured
+ */
+export const GetOpenAIStatusResponse = zod.object({
+  configured: zod.boolean(),
 });
 
 /**
@@ -342,6 +1110,9 @@ export const GetSettingsResponse = zod.object({
   defaultCalendarLink: zod.string().nullish(),
   defaultGhlWidgetId: zod.string().nullish(),
   defaultChatPersonaName: zod.string().nullish(),
+  defaultTone: zod.string().nullish(),
+  defaultPrimaryCta: zod.string().nullish(),
+  defaultDisclaimer: zod.string().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -360,6 +1131,9 @@ export const UpdateSettingsBody = zod.object({
   defaultCalendarLink: zod.string().nullish(),
   defaultGhlWidgetId: zod.string().nullish(),
   defaultChatPersonaName: zod.string().nullish(),
+  defaultTone: zod.string().nullish(),
+  defaultPrimaryCta: zod.string().nullish(),
+  defaultDisclaimer: zod.string().nullish(),
 });
 
 export const UpdateSettingsResponse = zod.object({
@@ -375,6 +1149,9 @@ export const UpdateSettingsResponse = zod.object({
   defaultCalendarLink: zod.string().nullish(),
   defaultGhlWidgetId: zod.string().nullish(),
   defaultChatPersonaName: zod.string().nullish(),
+  defaultTone: zod.string().nullish(),
+  defaultPrimaryCta: zod.string().nullish(),
+  defaultDisclaimer: zod.string().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });

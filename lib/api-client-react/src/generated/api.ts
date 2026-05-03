@@ -26,7 +26,10 @@ import type {
   CreateDemoBody,
   DashboardStats,
   Demo,
+  EnrichBusinessBody,
+  EnrichmentResult,
   ErrorEnvelope,
+  ExportDemoJson200,
   GetAdminAuditLogParams,
   GetAdminDemosParams,
   GetAdminUsersParams,
@@ -35,7 +38,9 @@ import type {
   LogoutSuccess,
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
+  OpenAIStatus,
   PublicDemo,
+  PushGhlResult,
   SuccessEnvelope,
   UpdateDemoBody,
   UpdateSettingsBody,
@@ -1132,6 +1137,671 @@ export const useRegenerateDemoSlug = <
 > => {
   return useMutation(getRegenerateDemoSlugMutationOptions(options));
 };
+
+/**
+ * @summary Run OpenAI web-search enrichment for a business (no save)
+ */
+export const getEnrichBusinessUrl = () => {
+  return `/api/enrich-business`;
+};
+
+export const enrichBusiness = async (
+  enrichBusinessBody: EnrichBusinessBody,
+  options?: RequestInit,
+): Promise<EnrichmentResult> => {
+  return customFetch<EnrichmentResult>(getEnrichBusinessUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(enrichBusinessBody),
+  });
+};
+
+export const getEnrichBusinessMutationOptions = <
+  TError = ErrorType<ErrorEnvelope | void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof enrichBusiness>>,
+    TError,
+    { data: BodyType<EnrichBusinessBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof enrichBusiness>>,
+  TError,
+  { data: BodyType<EnrichBusinessBody> },
+  TContext
+> => {
+  const mutationKey = ["enrichBusiness"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof enrichBusiness>>,
+    { data: BodyType<EnrichBusinessBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return enrichBusiness(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EnrichBusinessMutationResult = NonNullable<
+  Awaited<ReturnType<typeof enrichBusiness>>
+>;
+export type EnrichBusinessMutationBody = BodyType<EnrichBusinessBody>;
+export type EnrichBusinessMutationError = ErrorType<ErrorEnvelope | void>;
+
+/**
+ * @summary Run OpenAI web-search enrichment for a business (no save)
+ */
+export const useEnrichBusiness = <
+  TError = ErrorType<ErrorEnvelope | void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof enrichBusiness>>,
+    TError,
+    { data: BodyType<EnrichBusinessBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof enrichBusiness>>,
+  TError,
+  { data: BodyType<EnrichBusinessBody> },
+  TContext
+> => {
+  return useMutation(getEnrichBusinessMutationOptions(options));
+};
+
+/**
+ * @summary Run enrichment and persist to a demo
+ */
+export const getEnrichDemoUrl = (id: string) => {
+  return `/api/demos/${id}/enrich`;
+};
+
+export const enrichDemo = async (
+  id: string,
+  options?: RequestInit,
+): Promise<Demo> => {
+  return customFetch<Demo>(getEnrichDemoUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getEnrichDemoMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof enrichDemo>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof enrichDemo>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["enrichDemo"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof enrichDemo>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return enrichDemo(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EnrichDemoMutationResult = NonNullable<
+  Awaited<ReturnType<typeof enrichDemo>>
+>;
+
+export type EnrichDemoMutationError = ErrorType<void>;
+
+/**
+ * @summary Run enrichment and persist to a demo
+ */
+export const useEnrichDemo = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof enrichDemo>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof enrichDemo>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getEnrichDemoMutationOptions(options));
+};
+
+/**
+ * @summary Regenerate the AI prompt for a demo
+ */
+export const getRegenerateDemoPromptUrl = (id: string) => {
+  return `/api/demos/${id}/regenerate`;
+};
+
+export const regenerateDemoPrompt = async (
+  id: string,
+  options?: RequestInit,
+): Promise<Demo> => {
+  return customFetch<Demo>(getRegenerateDemoPromptUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRegenerateDemoPromptMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof regenerateDemoPrompt>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof regenerateDemoPrompt>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["regenerateDemoPrompt"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof regenerateDemoPrompt>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return regenerateDemoPrompt(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RegenerateDemoPromptMutationResult = NonNullable<
+  Awaited<ReturnType<typeof regenerateDemoPrompt>>
+>;
+
+export type RegenerateDemoPromptMutationError = ErrorType<void>;
+
+/**
+ * @summary Regenerate the AI prompt for a demo
+ */
+export const useRegenerateDemoPrompt = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof regenerateDemoPrompt>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof regenerateDemoPrompt>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getRegenerateDemoPromptMutationOptions(options));
+};
+
+/**
+ * @summary Record that the user copied the working prompt
+ */
+export const getLogDemoCopyEventUrl = (id: string) => {
+  return `/api/demos/${id}/copy-event`;
+};
+
+export const logDemoCopyEvent = async (
+  id: string,
+  options?: RequestInit,
+): Promise<Demo> => {
+  return customFetch<Demo>(getLogDemoCopyEventUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getLogDemoCopyEventMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logDemoCopyEvent>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof logDemoCopyEvent>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["logDemoCopyEvent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof logDemoCopyEvent>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return logDemoCopyEvent(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LogDemoCopyEventMutationResult = NonNullable<
+  Awaited<ReturnType<typeof logDemoCopyEvent>>
+>;
+
+export type LogDemoCopyEventMutationError = ErrorType<void>;
+
+/**
+ * @summary Record that the user copied the working prompt
+ */
+export const useLogDemoCopyEvent = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logDemoCopyEvent>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof logDemoCopyEvent>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getLogDemoCopyEventMutationOptions(options));
+};
+
+/**
+ * @summary Export the current working prompt as Markdown
+ */
+export const getExportDemoMarkdownUrl = (id: string) => {
+  return `/api/demos/${id}/export-markdown`;
+};
+
+export const exportDemoMarkdown = async (
+  id: string,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getExportDemoMarkdownUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getExportDemoMarkdownMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof exportDemoMarkdown>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof exportDemoMarkdown>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["exportDemoMarkdown"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof exportDemoMarkdown>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return exportDemoMarkdown(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ExportDemoMarkdownMutationResult = NonNullable<
+  Awaited<ReturnType<typeof exportDemoMarkdown>>
+>;
+
+export type ExportDemoMarkdownMutationError = ErrorType<void>;
+
+/**
+ * @summary Export the current working prompt as Markdown
+ */
+export const useExportDemoMarkdown = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof exportDemoMarkdown>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof exportDemoMarkdown>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getExportDemoMarkdownMutationOptions(options));
+};
+
+/**
+ * @summary Export the business profile and prompts as JSON
+ */
+export const getExportDemoJsonUrl = (id: string) => {
+  return `/api/demos/${id}/export-json`;
+};
+
+export const exportDemoJson = async (
+  id: string,
+  options?: RequestInit,
+): Promise<ExportDemoJson200> => {
+  return customFetch<ExportDemoJson200>(getExportDemoJsonUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getExportDemoJsonMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof exportDemoJson>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof exportDemoJson>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["exportDemoJson"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof exportDemoJson>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return exportDemoJson(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ExportDemoJsonMutationResult = NonNullable<
+  Awaited<ReturnType<typeof exportDemoJson>>
+>;
+
+export type ExportDemoJsonMutationError = ErrorType<void>;
+
+/**
+ * @summary Export the business profile and prompts as JSON
+ */
+export const useExportDemoJson = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof exportDemoJson>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof exportDemoJson>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getExportDemoJsonMutationOptions(options));
+};
+
+/**
+ * @summary Placeholder GHL push
+ */
+export const getPushDemoToGhlUrl = (id: string) => {
+  return `/api/demos/${id}/push-ghl`;
+};
+
+export const pushDemoToGhl = async (
+  id: string,
+  options?: RequestInit,
+): Promise<PushGhlResult> => {
+  return customFetch<PushGhlResult>(getPushDemoToGhlUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getPushDemoToGhlMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof pushDemoToGhl>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof pushDemoToGhl>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["pushDemoToGhl"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof pushDemoToGhl>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return pushDemoToGhl(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PushDemoToGhlMutationResult = NonNullable<
+  Awaited<ReturnType<typeof pushDemoToGhl>>
+>;
+
+export type PushDemoToGhlMutationError = ErrorType<void>;
+
+/**
+ * @summary Placeholder GHL push
+ */
+export const usePushDemoToGhl = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof pushDemoToGhl>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof pushDemoToGhl>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getPushDemoToGhlMutationOptions(options));
+};
+
+/**
+ * @summary Whether the server has an OpenAI key configured
+ */
+export const getGetOpenAIStatusUrl = () => {
+  return `/api/openai-status`;
+};
+
+export const getOpenAIStatus = async (
+  options?: RequestInit,
+): Promise<OpenAIStatus> => {
+  return customFetch<OpenAIStatus>(getGetOpenAIStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetOpenAIStatusQueryKey = () => {
+  return [`/api/openai-status`] as const;
+};
+
+export const getGetOpenAIStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getOpenAIStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getOpenAIStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetOpenAIStatusQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getOpenAIStatus>>> = ({
+    signal,
+  }) => getOpenAIStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getOpenAIStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetOpenAIStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getOpenAIStatus>>
+>;
+export type GetOpenAIStatusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Whether the server has an OpenAI key configured
+ */
+
+export function useGetOpenAIStatus<
+  TData = Awaited<ReturnType<typeof getOpenAIStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getOpenAIStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetOpenAIStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Get aggregated dashboard metrics

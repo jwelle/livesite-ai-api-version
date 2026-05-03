@@ -24,6 +24,9 @@ const settingsSchema = z.object({
   defaultCalendarLink: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   defaultGhlWidgetId: z.string().optional(),
   defaultChatPersonaName: z.string().optional(),
+  defaultTone: z.string().optional(),
+  defaultPrimaryCta: z.string().optional(),
+  defaultDisclaimer: z.string().optional(),
 });
 
 type SettingsValues = z.infer<typeof settingsSchema>;
@@ -47,6 +50,9 @@ export default function Settings() {
       defaultCalendarLink: "",
       defaultGhlWidgetId: "",
       defaultChatPersonaName: "",
+      defaultTone: "",
+      defaultPrimaryCta: "",
+      defaultDisclaimer: "",
     },
   });
 
@@ -63,6 +69,9 @@ export default function Settings() {
         defaultCalendarLink: settings.defaultCalendarLink || "",
         defaultGhlWidgetId: settings.defaultGhlWidgetId || "",
         defaultChatPersonaName: settings.defaultChatPersonaName || "",
+        defaultTone: settings.defaultTone || "",
+        defaultPrimaryCta: settings.defaultPrimaryCta || "",
+        defaultDisclaimer: settings.defaultDisclaimer || "",
       });
     }
   }, [settings, form]);
@@ -216,6 +225,46 @@ export default function Settings() {
                     <FormControl>
                       <Input placeholder="https://calendar.com/book" {...field} data-testid="input-default-calendar" />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="defaultTone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Default Voice Agent Tone</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Friendly, professional" {...field} data-testid="input-default-tone" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="defaultPrimaryCta"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Default Primary CTA</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Book a consultation" {...field} data-testid="input-default-cta" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="defaultDisclaimer"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Default Disclaimer</FormLabel>
+                    <FormControl>
+                      <Input placeholder="This AI may make mistakes — verify important info." {...field} data-testid="input-default-disclaimer" />
+                    </FormControl>
+                    <FormDescription>Shown on demo pages and used as compliance boundary in the voice prompt.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

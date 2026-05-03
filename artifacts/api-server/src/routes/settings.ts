@@ -63,6 +63,9 @@ router.patch("/settings", blockDuringImpersonation, async (req, res) => {
     updates.defaultGhlWidgetId = v && v.length > 0 ? v : null;
   }
   if (data.defaultChatPersonaName !== undefined) updates.defaultChatPersonaName = data.defaultChatPersonaName;
+  if (data.defaultTone !== undefined) updates.defaultTone = data.defaultTone;
+  if (data.defaultPrimaryCta !== undefined) updates.defaultPrimaryCta = data.defaultPrimaryCta;
+  if (data.defaultDisclaimer !== undefined) updates.defaultDisclaimer = data.defaultDisclaimer;
 
   await getOrCreateSettings(req.user.id);
 

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, demosTable, agencySettingsTable } from "@workspace/db";
+import { db, demosTable, agencySettingsTable, promptVersionsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import {
   CreateDemoBody,
@@ -8,10 +8,25 @@ import {
   UpdateDemoParams,
   DeleteDemoParams,
   RegenerateDemoSlugParams,
+  EnrichBusinessBody,
+  EnrichDemoParams,
+  RegenerateDemoPromptParams,
+  LogDemoCopyEventParams,
+  ExportDemoMarkdownParams,
+  ExportDemoJsonParams,
+  PushDemoToGhlParams,
 } from "@workspace/api-zod";
-import { generateVoiceAIPrompt } from "../services/aiPromptService";
+import {
+  runEnrichment,
+  isOpenAIConfigured,
+  buildFinalPrompt,
+  type EnrichInput,
+  type BusinessProfile,
+  type VoiceAgentPackage,
+} from "../services/enrichmentService";
 import { seedIfEmpty } from "../services/seed";
 import { blockDuringImpersonation } from "../middlewares/authMiddleware";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -68,6 +83,23 @@ function normalizeUrl(url: string): string {
   return url;
 }
 
+// Per-user rate limiter for enrichment / regenerate.
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 5;
+const rateBuckets = new Map<string, number[]>();
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const arr = rateBuckets.get(userId) ?? [];
+  const recent = arr.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  if (recent.length >= RATE_LIMIT_MAX) {
+    rateBuckets.set(userId, recent);
+    return false;
+  }
+  recent.push(now);
+  rateBuckets.set(userId, recent);
+  return true;
+}
+
 router.get("/demos", async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
@@ -118,6 +150,8 @@ router.post("/demos", blockMutateForImpersonation, async (req, res) => {
     data.chatPersonaName || settings?.defaultChatPersonaName || null;
   const voicePersonaName =
     data.voicePersonaName || settings?.defaultVoicePersonaName || null;
+  const desiredTone = data.desiredTone || settings?.defaultTone || null;
+  const primaryCta = data.primaryCta || settings?.defaultPrimaryCta || null;
 
   const [demo] = await db
     .insert(demosTable)
@@ -133,6 +167,10 @@ router.post("/demos", blockMutateForImpersonation, async (req, res) => {
       voiceAiPhoneNumber,
       voicePersonaName,
       voiceAiGoal: data.voiceAiGoal ?? null,
+      desiredTone,
+      primaryCta,
+      optionalNotes: data.optionalNotes ?? null,
+      ghlVoiceAgentId: sanitizeWidgetId(data.ghlVoiceAgentId ?? null),
       ctaCalendarLink,
       chatWidgetId,
       chatPersonaName,
@@ -141,7 +179,7 @@ router.post("/demos", blockMutateForImpersonation, async (req, res) => {
       serviceArea: data.serviceArea ?? null,
       customDemoMessage: data.customDemoMessage ?? null,
       internalNotes: data.internalNotes ?? null,
-      status: data.status ?? "active",
+      status: data.status ?? "draft",
     })
     .returning();
 
@@ -205,6 +243,11 @@ router.patch("/demos/:id", blockMutateForImpersonation, async (req, res) => {
   if (data.voiceAiPhoneNumber !== undefined) updates.voiceAiPhoneNumber = data.voiceAiPhoneNumber;
   if (data.voicePersonaName !== undefined) updates.voicePersonaName = data.voicePersonaName;
   if (data.voiceAiGoal !== undefined) updates.voiceAiGoal = data.voiceAiGoal;
+  if (data.desiredTone !== undefined) updates.desiredTone = data.desiredTone;
+  if (data.primaryCta !== undefined) updates.primaryCta = data.primaryCta;
+  if (data.optionalNotes !== undefined) updates.optionalNotes = data.optionalNotes;
+  if (data.ghlVoiceAgentId !== undefined)
+    updates.ghlVoiceAgentId = sanitizeWidgetId(data.ghlVoiceAgentId);
   if (data.ctaCalendarLink !== undefined) updates.ctaCalendarLink = data.ctaCalendarLink;
   if (data.chatWidgetId !== undefined) updates.chatWidgetId = sanitizeWidgetId(data.chatWidgetId);
   if (data.chatPersonaName !== undefined) updates.chatPersonaName = data.chatPersonaName;
@@ -213,6 +256,15 @@ router.patch("/demos/:id", blockMutateForImpersonation, async (req, res) => {
   if (data.serviceArea !== undefined) updates.serviceArea = data.serviceArea;
   if (data.customDemoMessage !== undefined) updates.customDemoMessage = data.customDemoMessage;
   if (data.internalNotes !== undefined) updates.internalNotes = data.internalNotes;
+  if (data.businessProfile !== undefined) updates.businessProfile = data.businessProfile;
+  if (data.voiceAgentPackage !== undefined) updates.voiceAgentPackage = data.voiceAgentPackage;
+  // Editing the prompt updates ONLY currentWorkingPrompt — never aiGeneratedPrompt.
+  if (data.currentWorkingPrompt !== undefined) {
+    updates.currentWorkingPrompt = data.currentWorkingPrompt;
+  }
+  if (data.finalSavedPrompt !== undefined) {
+    updates.finalSavedPrompt = data.finalSavedPrompt;
+  }
   if (data.status !== undefined) updates.status = data.status;
 
   const [demo] = await db
@@ -230,6 +282,23 @@ router.patch("/demos/:id", blockMutateForImpersonation, async (req, res) => {
     res.status(404).json({ error: "Demo not found" });
     return;
   }
+
+  // Track prompt history when working prompt or final prompt changes.
+  if (data.currentWorkingPrompt && typeof data.currentWorkingPrompt === "string") {
+    await db.insert(promptVersionsTable).values({
+      demoId: demo.id,
+      type: "user_edited",
+      promptText: data.currentWorkingPrompt,
+    });
+  }
+  if (data.finalSavedPrompt && typeof data.finalSavedPrompt === "string") {
+    await db.insert(promptVersionsTable).values({
+      demoId: demo.id,
+      type: "final_saved",
+      promptText: data.finalSavedPrompt,
+    });
+  }
+
   res.json(demo);
 });
 
@@ -323,6 +392,261 @@ router.get("/dashboard/stats", async (req, res) => {
     totalViews,
     totalCallClicks,
     totalCalendarClicks,
+  });
+});
+
+// ---- OpenAI status ----
+router.get("/openai-status", (_req, res) => {
+  res.json({ configured: isOpenAIConfigured() });
+});
+
+// ---- Enrichment (no save) ----
+router.post("/enrich-business", blockMutateForImpersonation, async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  if (!isOpenAIConfigured()) {
+    res.status(500).json({ error: "OpenAI is not configured on the server." });
+    return;
+  }
+  const parsed = EnrichBusinessBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  if (!checkRateLimit(req.user.id)) {
+    res.status(429).json({ error: "Too many enrichment requests. Please wait a minute and try again." });
+    return;
+  }
+  const input: EnrichInput = {
+    businessName: parsed.data.businessName,
+    websiteUrl: normalizeUrl(parsed.data.websiteUrl),
+    industry: parsed.data.industry ?? null,
+    agentGoal: parsed.data.agentGoal,
+    tone: parsed.data.tone ?? null,
+    primaryCta: parsed.data.primaryCta ?? null,
+    optionalNotes: parsed.data.optionalNotes ?? null,
+  };
+  try {
+    const result = await runEnrichment(input);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    logger.error({ err: (err as Error).message }, "enrich-business failed");
+    res.status(500).json({ error: "AI enrichment failed. Please try again or enter business details manually." });
+  }
+});
+
+// ---- Enrich a saved demo ----
+router.post("/demos/:id/enrich", blockMutateForImpersonation, async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  if (!isOpenAIConfigured()) {
+    res.status(500).json({ error: "OpenAI is not configured on the server." });
+    return;
+  }
+  const params = EnrichDemoParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: "Invalid ID" }); return; }
+  if (!checkRateLimit(req.user.id)) {
+    res.status(429).json({ error: "Too many enrichment requests. Please wait a minute and try again." });
+    return;
+  }
+  const [demo] = await db
+    .select()
+    .from(demosTable)
+    .where(and(eq(demosTable.id, params.data.id), eq(demosTable.userId, req.user.id)));
+  if (!demo) { res.status(404).json({ error: "Demo not found" }); return; }
+  if (!demo.voiceAiGoal) {
+    res.status(400).json({ error: "Voice Agent Goal is required before enrichment." });
+    return;
+  }
+  const input: EnrichInput = {
+    businessName: demo.companyName,
+    websiteUrl: demo.websiteUrl,
+    industry: demo.industry,
+    agentGoal: demo.voiceAiGoal,
+    tone: demo.desiredTone,
+    primaryCta: demo.primaryCta,
+    optionalNotes: demo.optionalNotes,
+  };
+  try {
+    const result = await runEnrichment(input);
+    const [updated] = await db
+      .update(demosTable)
+      .set({
+        businessProfile: result.businessProfile,
+        voiceAgentPackage: result.voiceAgentPackage,
+        aiGeneratedPrompt: result.aiGeneratedPrompt,
+        currentWorkingPrompt: result.aiGeneratedPrompt,
+        status: "enriched",
+      })
+      .where(eq(demosTable.id, demo.id))
+      .returning();
+    await db.insert(promptVersionsTable).values({
+      demoId: demo.id,
+      type: "ai_generated",
+      promptText: result.aiGeneratedPrompt,
+      notes: result.limitedResults ? "Limited public information found." : null,
+    });
+    res.json(updated);
+  } catch (err) {
+    logger.error({ err: (err as Error).message }, "enrich-demo failed");
+    await db.update(demosTable).set({ status: "failed" }).where(eq(demosTable.id, demo.id));
+    res.status(500).json({ error: "AI enrichment failed. Please try again or enter business details manually." });
+  }
+});
+
+// ---- Regenerate prompt only ----
+router.post("/demos/:id/regenerate", blockMutateForImpersonation, async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  if (!isOpenAIConfigured()) {
+    res.status(500).json({ error: "OpenAI is not configured on the server." });
+    return;
+  }
+  const params = RegenerateDemoPromptParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: "Invalid ID" }); return; }
+  if (!checkRateLimit(req.user.id)) {
+    res.status(429).json({ error: "Too many requests. Please wait a minute and try again." });
+    return;
+  }
+  const [demo] = await db
+    .select()
+    .from(demosTable)
+    .where(and(eq(demosTable.id, params.data.id), eq(demosTable.userId, req.user.id)));
+  if (!demo) { res.status(404).json({ error: "Demo not found" }); return; }
+  if (!demo.voiceAiGoal) {
+    res.status(400).json({ error: "Voice Agent Goal is required before regeneration." });
+    return;
+  }
+  try {
+    let aiGeneratedPrompt: string;
+    if (demo.businessProfile && demo.voiceAgentPackage) {
+      // Regenerate prompt from existing structured data without re-enriching.
+      aiGeneratedPrompt = buildFinalPrompt(
+        demo.businessProfile as unknown as BusinessProfile,
+        demo.voiceAgentPackage as unknown as VoiceAgentPackage,
+        {
+          businessName: demo.companyName,
+          websiteUrl: demo.websiteUrl,
+          industry: demo.industry,
+          agentGoal: demo.voiceAiGoal,
+          tone: demo.desiredTone,
+          primaryCta: demo.primaryCta,
+          optionalNotes: demo.optionalNotes,
+        },
+      );
+    } else {
+      const input: EnrichInput = {
+        businessName: demo.companyName,
+        websiteUrl: demo.websiteUrl,
+        industry: demo.industry,
+        agentGoal: demo.voiceAiGoal,
+        tone: demo.desiredTone,
+        primaryCta: demo.primaryCta,
+        optionalNotes: demo.optionalNotes,
+      };
+      const result = await runEnrichment(input);
+      aiGeneratedPrompt = result.aiGeneratedPrompt;
+      await db.update(demosTable).set({
+        businessProfile: result.businessProfile,
+        voiceAgentPackage: result.voiceAgentPackage,
+      }).where(eq(demosTable.id, demo.id));
+    }
+    // Save the new AI-generated prompt; preserve currentWorkingPrompt as-is.
+    const [updated] = await db
+      .update(demosTable)
+      .set({ aiGeneratedPrompt })
+      .where(eq(demosTable.id, demo.id))
+      .returning();
+    await db.insert(promptVersionsTable).values({
+      demoId: demo.id,
+      type: "regenerated",
+      promptText: aiGeneratedPrompt,
+    });
+    res.json(updated);
+  } catch (err) {
+    logger.error({ err: (err as Error).message }, "regenerate failed");
+    res.status(500).json({ error: "Regenerate failed. Please try again." });
+  }
+});
+
+router.post("/demos/:id/copy-event", blockMutateForImpersonation, async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const params = LogDemoCopyEventParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const [demo] = await db
+    .select()
+    .from(demosTable)
+    .where(and(eq(demosTable.id, params.data.id), eq(demosTable.userId, req.user.id)));
+  if (!demo) { res.status(404).json({ error: "Demo not found" }); return; }
+  const newStatus = demo.status === "approved" || demo.status === "edited" || demo.status === "enriched"
+    ? "copied"
+    : demo.status;
+  const [updated] = await db
+    .update(demosTable)
+    .set({ status: newStatus })
+    .where(eq(demosTable.id, demo.id))
+    .returning();
+  res.json(updated);
+});
+
+router.post("/demos/:id/export-markdown", blockMutateForImpersonation, async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const params = ExportDemoMarkdownParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const [demo] = await db
+    .select()
+    .from(demosTable)
+    .where(and(eq(demosTable.id, params.data.id), eq(demosTable.userId, req.user.id)));
+  if (!demo) { res.status(404).json({ error: "Demo not found" }); return; }
+  const text = demo.currentWorkingPrompt || demo.aiGeneratedPrompt || "";
+  res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${demo.slug}-prompt.md"`,
+  );
+  res.send(text);
+});
+
+router.post("/demos/:id/export-json", blockMutateForImpersonation, async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const params = ExportDemoJsonParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const [demo] = await db
+    .select()
+    .from(demosTable)
+    .where(and(eq(demosTable.id, params.data.id), eq(demosTable.userId, req.user.id)));
+  if (!demo) { res.status(404).json({ error: "Demo not found" }); return; }
+  const payload = {
+    businessProfile: demo.businessProfile,
+    voiceAgentPackage: demo.voiceAgentPackage,
+    aiGeneratedPrompt: demo.aiGeneratedPrompt,
+    currentWorkingPrompt: demo.currentWorkingPrompt,
+    finalSavedPrompt: demo.finalSavedPrompt,
+  };
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${demo.slug}-export.json"`,
+  );
+  res.json(payload);
+});
+
+router.post("/demos/:id/push-ghl", blockMutateForImpersonation, async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const params = PushDemoToGhlParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const [demo] = await db
+    .select()
+    .from(demosTable)
+    .where(and(eq(demosTable.id, params.data.id), eq(demosTable.userId, req.user.id)));
+  if (!demo) { res.status(404).json({ error: "Demo not found" }); return; }
+  // V1 placeholder — GHL push API not configured.
+  res.json({
+    success: false,
+    message:
+      "GHL push is not configured yet. You can copy the final prompt and paste it into your voice agent manually.",
   });
 });
 

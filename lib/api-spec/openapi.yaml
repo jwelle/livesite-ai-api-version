@@ -292,6 +292,147 @@ paths:
         '401':
           description: Unauthorized
 
+  /enrich-business:
+    post:
+      tags: [demos]
+      operationId: enrichBusiness
+      summary: Run OpenAI web-search enrichment for a business (no save)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrichBusinessBody'
+      responses:
+        '200':
+          description: Enrichment result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrichmentResult'
+        '400': { description: Validation error, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+        '401': { description: Unauthorized }
+        '429': { description: Rate limited, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+        '500': { description: Enrichment failed, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+
+  /demos/{id}/enrich:
+    post:
+      tags: [demos]
+      operationId: enrichDemo
+      summary: Run enrichment and persist to a demo
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Updated demo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Demo'
+        '400': { description: Validation error }
+        '401': { description: Unauthorized }
+        '404': { description: Not found }
+        '429': { description: Rate limited }
+        '500': { description: Enrichment failed }
+
+  /demos/{id}/regenerate:
+    post:
+      tags: [demos]
+      operationId: regenerateDemoPrompt
+      summary: Regenerate the AI prompt for a demo
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Updated demo (new aiGeneratedPrompt; currentWorkingPrompt unchanged)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Demo'
+        '404': { description: Not found }
+        '401': { description: Unauthorized }
+        '429': { description: Rate limited }
+        '500': { description: Regenerate failed }
+
+  /demos/{id}/copy-event:
+    post:
+      tags: [demos]
+      operationId: logDemoCopyEvent
+      summary: Record that the user copied the working prompt
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Logged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Demo'
+        '404': { description: Not found }
+        '401': { description: Unauthorized }
+
+  /demos/{id}/export-markdown:
+    post:
+      tags: [demos]
+      operationId: exportDemoMarkdown
+      summary: Export the current working prompt as Markdown
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Markdown text
+          content:
+            text/markdown:
+              schema: { type: string }
+        '404': { description: Not found }
+        '401': { description: Unauthorized }
+
+  /demos/{id}/export-json:
+    post:
+      tags: [demos]
+      operationId: exportDemoJson
+      summary: Export the business profile and prompts as JSON
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: JSON export
+          content:
+            application/json:
+              schema: { type: object }
+        '404': { description: Not found }
+        '401': { description: Unauthorized }
+
+  /demos/{id}/push-ghl:
+    post:
+      tags: [demos]
+      operationId: pushDemoToGhl
+      summary: Placeholder GHL push
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Push result (placeholder)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushGhlResult'
+        '404': { description: Not found }
+        '401': { description: Unauthorized }
+
+  /openai-status:
+    get:
+      tags: [settings]
+      operationId: getOpenAIStatus
+      summary: Whether the server has an OpenAI key configured
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenAIStatus'
+
   /dashboard/stats:
     get:
       tags: [demos]
@@ -780,6 +921,14 @@ components:
           type: [string, 'null']
         voiceAiGoal:
           type: [string, 'null']
+        desiredTone:
+          type: [string, 'null']
+        primaryCta:
+          type: [string, 'null']
+        optionalNotes:
+          type: [string, 'null']
+        ghlVoiceAgentId:
+          type: [string, 'null']
         ctaCalendarLink:
           type: [string, 'null']
         chatWidgetId:
@@ -796,9 +945,23 @@ components:
           type: [string, 'null']
         internalNotes:
           type: [string, 'null']
+        businessProfile:
+          oneOf:
+            - $ref: '#/components/schemas/BusinessProfile'
+            - type: 'null'
+        voiceAgentPackage:
+          oneOf:
+            - $ref: '#/components/schemas/VoiceAgentPackage'
+            - type: 'null'
+        aiGeneratedPrompt:
+          type: [string, 'null']
+        currentWorkingPrompt:
+          type: [string, 'null']
+        finalSavedPrompt:
+          type: [string, 'null']
         status:
           type: string
-          enum: [active, inactive, draft]
+          enum: [active, inactive, draft, enriched, edited, approved, copied, pushed_to_ghl, failed]
         viewCount:
           type: integer
         callClickCount:
@@ -837,6 +1000,14 @@ components:
           type: [string, 'null']
         voiceAiGoal:
           type: [string, 'null']
+        desiredTone:
+          type: [string, 'null']
+        primaryCta:
+          type: [string, 'null']
+        optionalNotes:
+          type: [string, 'null']
+        ghlVoiceAgentId:
+          type: [string, 'null']
         ctaCalendarLink:
           type: [string, 'null']
         chatWidgetId:
@@ -855,7 +1026,7 @@ components:
           type: [string, 'null']
         status:
           type: string
-          enum: [active, inactive, draft]
+          enum: [active, inactive, draft, enriched, edited, approved, copied, pushed_to_ghl, failed]
 
     UpdateDemoBody:
       type: object
@@ -878,6 +1049,14 @@ components:
           type: [string, 'null']
         voiceAiGoal:
           type: [string, 'null']
+        desiredTone:
+          type: [string, 'null']
+        primaryCta:
+          type: [string, 'null']
+        optionalNotes:
+          type: [string, 'null']
+        ghlVoiceAgentId:
+          type: [string, 'null']
         ctaCalendarLink:
           type: [string, 'null']
         chatWidgetId:
@@ -894,9 +1073,118 @@ components:
           type: [string, 'null']
         internalNotes:
           type: [string, 'null']
+        businessProfile:
+          oneOf:
+            - $ref: '#/components/schemas/BusinessProfile'
+            - type: 'null'
+        voiceAgentPackage:
+          oneOf:
+            - $ref: '#/components/schemas/VoiceAgentPackage'
+            - type: 'null'
+        currentWorkingPrompt:
+          type: [string, 'null']
+        finalSavedPrompt:
+          type: [string, 'null']
         status:
           type: [string, 'null']
-          enum: [active, inactive, draft, null]
+          enum: [active, inactive, draft, enriched, edited, approved, copied, pushed_to_ghl, failed, null]
+
+    BusinessProfile:
+      type: object
+      properties:
+        businessName: { type: [string, 'null'] }
+        websiteUrl: { type: [string, 'null'] }
+        industry: { type: [string, 'null'] }
+        summary: { type: [string, 'null'] }
+        services:
+          type: array
+          items: { type: string }
+        serviceArea: { type: [string, 'null'] }
+        phone: { type: [string, 'null'] }
+        hours: { type: [string, 'null'] }
+        differentiators:
+          type: array
+          items: { type: string }
+        customerTypes:
+          type: array
+          items: { type: string }
+        commonQuestions:
+          type: array
+          items: { type: string }
+        sourceNotes:
+          type: array
+          items:
+            type: object
+            properties:
+              title: { type: string }
+              url: { type: string }
+              note: { type: string }
+        unknowns:
+          type: array
+          items: { type: string }
+
+    VoiceAgentPackage:
+      type: object
+      properties:
+        agentName: { type: [string, 'null'] }
+        agentRole: { type: [string, 'null'] }
+        tone: { type: [string, 'null'] }
+        conversationGoal: { type: [string, 'null'] }
+        openingScript: { type: [string, 'null'] }
+        qualificationQuestions:
+          type: array
+          items: { type: string }
+        objectionHandlers:
+          type: array
+          items:
+            type: object
+            properties:
+              objection: { type: string }
+              response: { type: string }
+        escalationRules:
+          type: array
+          items: { type: string }
+        bookingInstructions: { type: [string, 'null'] }
+        complianceBoundaries:
+          type: array
+          items: { type: string }
+
+    EnrichBusinessBody:
+      type: object
+      required: [businessName, websiteUrl, agentGoal]
+      properties:
+        businessName: { type: string, minLength: 1 }
+        websiteUrl: { type: string, minLength: 1 }
+        industry: { type: [string, 'null'] }
+        agentGoal: { type: string, minLength: 1 }
+        tone: { type: [string, 'null'] }
+        primaryCta: { type: [string, 'null'] }
+        optionalNotes: { type: [string, 'null'] }
+
+    EnrichmentResult:
+      type: object
+      required: [success, businessProfile, voiceAgentPackage, aiGeneratedPrompt]
+      properties:
+        success: { type: boolean }
+        limitedResults: { type: boolean }
+        businessProfile:
+          $ref: '#/components/schemas/BusinessProfile'
+        voiceAgentPackage:
+          $ref: '#/components/schemas/VoiceAgentPackage'
+        aiGeneratedPrompt: { type: string }
+
+    PushGhlResult:
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+
+    OpenAIStatus:
+      type: object
+      required: [configured]
+      properties:
+        configured: { type: boolean }
 
     AgencySettings:
       type: object
@@ -930,6 +1218,12 @@ components:
           type: [string, 'null']
         defaultChatPersonaName:
           type: [string, 'null']
+        defaultTone:
+          type: [string, 'null']
+        defaultPrimaryCta:
+          type: [string, 'null']
+        defaultDisclaimer:
+          type: [string, 'null']
         createdAt:
           type: string
           format: date-time
@@ -959,6 +1253,12 @@ components:
         defaultGhlWidgetId:
           type: [string, 'null']
         defaultChatPersonaName:
+          type: [string, 'null']
+        defaultTone:
+          type: [string, 'null']
+        defaultPrimaryCta:
+          type: [string, 'null']
+        defaultDisclaimer:
           type: [string, 'null']
 
     DashboardStats:

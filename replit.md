@@ -105,3 +105,11 @@ script.setAttribute("data-widget-id", resolvedChatWidgetId)
 - GHL Voice AI API integration is **prepared but not active** — prompt generation works, but API calls to GHL are stubs. Agency pastes the generated prompt into HighLevel manually.
 - Seed data: one demo is auto-created for new users on first `/demos` load.
 - All public demo tracking is unauthenticated and uses slug-based lookup.
+
+## OpenAI enrichment (Task #15)
+
+- Server-only OpenAI Responses API + `web_search` tool. **No website scraping.** `OPENAI_API_KEY` server-side only.
+- Endpoints under `/api`: `enrich-business`, `demos/:id/{enrich,regenerate,copy-event,export-markdown,export-json,push-ghl}`, `openai-status`. In-memory 5/min/user rate limit on enrich + regenerate.
+- DB additions: `demos.{industry, voiceAgentGoal, desiredTone, primaryCta, disclaimer, businessProfile, suggestedPackage, aiGeneratedPrompt, currentWorkingPrompt, sources, ghlPushStatus}`; `agency_settings.{defaultTone, defaultPrimaryCta, defaultDisclaimer}`; new `prompt_versions` table.
+- PATCH `/demos/:id` writes `currentWorkingPrompt` only. `aiGeneratedPrompt` is preserved across edits and updated only by enrich/regenerate. Regenerate appends a `prompt_versions` row of type `regenerated` and offers save/regenerate/cancel from the editor.
+- Frontend export uses generated client URL helpers (`getExportDemoMarkdownUrl`, `getExportDemoJsonUrl`).

@@ -150,7 +150,66 @@ export const DemoStatus = {
   active: "active",
   inactive: "inactive",
   draft: "draft",
+  enriched: "enriched",
+  edited: "edited",
+  approved: "approved",
+  copied: "copied",
+  pushed_to_ghl: "pushed_to_ghl",
+  failed: "failed",
 } as const;
+
+export type BusinessProfileSourceNotesItem = {
+  title?: string;
+  url?: string;
+  note?: string;
+};
+
+export interface BusinessProfile {
+  /** @nullable */
+  businessName?: string | null;
+  /** @nullable */
+  websiteUrl?: string | null;
+  /** @nullable */
+  industry?: string | null;
+  /** @nullable */
+  summary?: string | null;
+  services?: string[];
+  /** @nullable */
+  serviceArea?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  hours?: string | null;
+  differentiators?: string[];
+  customerTypes?: string[];
+  commonQuestions?: string[];
+  sourceNotes?: BusinessProfileSourceNotesItem[];
+  unknowns?: string[];
+}
+
+export type VoiceAgentPackageObjectionHandlersItem = {
+  objection?: string;
+  response?: string;
+};
+
+export interface VoiceAgentPackage {
+  /** @nullable */
+  agentName?: string | null;
+  /** @nullable */
+  agentRole?: string | null;
+  /** @nullable */
+  tone?: string | null;
+  /** @nullable */
+  conversationGoal?: string | null;
+  /** @nullable */
+  openingScript?: string | null;
+  qualificationQuestions?: string[];
+  objectionHandlers?: VoiceAgentPackageObjectionHandlersItem[];
+  escalationRules?: string[];
+  /** @nullable */
+  bookingInstructions?: string | null;
+  complianceBoundaries?: string[];
+}
 
 export interface Demo {
   id: string;
@@ -173,6 +232,14 @@ export interface Demo {
   /** @nullable */
   voiceAiGoal?: string | null;
   /** @nullable */
+  desiredTone?: string | null;
+  /** @nullable */
+  primaryCta?: string | null;
+  /** @nullable */
+  optionalNotes?: string | null;
+  /** @nullable */
+  ghlVoiceAgentId?: string | null;
+  /** @nullable */
   ctaCalendarLink?: string | null;
   /** @nullable */
   chatWidgetId?: string | null;
@@ -188,6 +255,14 @@ export interface Demo {
   customDemoMessage?: string | null;
   /** @nullable */
   internalNotes?: string | null;
+  businessProfile?: BusinessProfile | null;
+  voiceAgentPackage?: VoiceAgentPackage | null;
+  /** @nullable */
+  aiGeneratedPrompt?: string | null;
+  /** @nullable */
+  currentWorkingPrompt?: string | null;
+  /** @nullable */
+  finalSavedPrompt?: string | null;
   status: DemoStatus;
   viewCount: number;
   callClickCount: number;
@@ -203,6 +278,12 @@ export const CreateDemoBodyStatus = {
   active: "active",
   inactive: "inactive",
   draft: "draft",
+  enriched: "enriched",
+  edited: "edited",
+  approved: "approved",
+  copied: "copied",
+  pushed_to_ghl: "pushed_to_ghl",
+  failed: "failed",
 } as const;
 
 export interface CreateDemoBody {
@@ -223,6 +304,14 @@ export interface CreateDemoBody {
   voicePersonaName?: string | null;
   /** @nullable */
   voiceAiGoal?: string | null;
+  /** @nullable */
+  desiredTone?: string | null;
+  /** @nullable */
+  primaryCta?: string | null;
+  /** @nullable */
+  optionalNotes?: string | null;
+  /** @nullable */
+  ghlVoiceAgentId?: string | null;
   /** @nullable */
   ctaCalendarLink?: string | null;
   /** @nullable */
@@ -253,6 +342,12 @@ export const UpdateDemoBodyStatus = {
   active: "active",
   inactive: "inactive",
   draft: "draft",
+  enriched: "enriched",
+  edited: "edited",
+  approved: "approved",
+  copied: "copied",
+  pushed_to_ghl: "pushed_to_ghl",
+  failed: "failed",
 } as const;
 
 export interface UpdateDemoBody {
@@ -275,6 +370,14 @@ export interface UpdateDemoBody {
   /** @nullable */
   voiceAiGoal?: string | null;
   /** @nullable */
+  desiredTone?: string | null;
+  /** @nullable */
+  primaryCta?: string | null;
+  /** @nullable */
+  optionalNotes?: string | null;
+  /** @nullable */
+  ghlVoiceAgentId?: string | null;
+  /** @nullable */
   ctaCalendarLink?: string | null;
   /** @nullable */
   chatWidgetId?: string | null;
@@ -290,8 +393,48 @@ export interface UpdateDemoBody {
   customDemoMessage?: string | null;
   /** @nullable */
   internalNotes?: string | null;
+  businessProfile?: BusinessProfile | null;
+  voiceAgentPackage?: VoiceAgentPackage | null;
+  /** @nullable */
+  currentWorkingPrompt?: string | null;
+  /** @nullable */
+  finalSavedPrompt?: string | null;
   /** @nullable */
   status?: UpdateDemoBodyStatus;
+}
+
+export interface EnrichBusinessBody {
+  /** @minLength 1 */
+  businessName: string;
+  /** @minLength 1 */
+  websiteUrl: string;
+  /** @nullable */
+  industry?: string | null;
+  /** @minLength 1 */
+  agentGoal: string;
+  /** @nullable */
+  tone?: string | null;
+  /** @nullable */
+  primaryCta?: string | null;
+  /** @nullable */
+  optionalNotes?: string | null;
+}
+
+export interface EnrichmentResult {
+  success: boolean;
+  limitedResults?: boolean;
+  businessProfile: BusinessProfile;
+  voiceAgentPackage: VoiceAgentPackage;
+  aiGeneratedPrompt: string;
+}
+
+export interface PushGhlResult {
+  success: boolean;
+  message: string;
+}
+
+export interface OpenAIStatus {
+  configured: boolean;
 }
 
 export interface AgencySettings {
@@ -317,6 +460,12 @@ export interface AgencySettings {
   defaultGhlWidgetId?: string | null;
   /** @nullable */
   defaultChatPersonaName?: string | null;
+  /** @nullable */
+  defaultTone?: string | null;
+  /** @nullable */
+  defaultPrimaryCta?: string | null;
+  /** @nullable */
+  defaultDisclaimer?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -342,6 +491,12 @@ export interface UpdateSettingsBody {
   defaultGhlWidgetId?: string | null;
   /** @nullable */
   defaultChatPersonaName?: string | null;
+  /** @nullable */
+  defaultTone?: string | null;
+  /** @nullable */
+  defaultPrimaryCta?: string | null;
+  /** @nullable */
+  defaultDisclaimer?: string | null;
 }
 
 export interface DashboardStats {
@@ -400,6 +555,8 @@ export type HandleBrowserLoginCallbackParams = {
   state?: string;
   iss?: string;
 };
+
+export type ExportDemoJson200 = { [key: string]: unknown };
 
 export type GetAdminUsersParams = {
   page?: number;

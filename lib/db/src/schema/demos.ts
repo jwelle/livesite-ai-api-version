@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./auth";
@@ -17,6 +17,9 @@ export const agencySettingsTable = pgTable("agency_settings", {
   defaultCalendarLink: text("default_calendar_link"),
   defaultGhlWidgetId: varchar("default_ghl_widget_id", { length: 100 }),
   defaultChatPersonaName: text("default_chat_persona_name"),
+  defaultTone: text("default_tone"),
+  defaultPrimaryCta: text("default_primary_cta"),
+  defaultDisclaimer: text("default_disclaimer"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
@@ -37,6 +40,10 @@ export const demosTable = pgTable("demos", {
   voiceAiPhoneNumber: varchar("voice_ai_phone_number", { length: 50 }),
   voicePersonaName: text("voice_persona_name"),
   voiceAiGoal: text("voice_ai_goal"),
+  desiredTone: text("desired_tone"),
+  primaryCta: text("primary_cta"),
+  optionalNotes: text("optional_notes"),
+  ghlVoiceAgentId: varchar("ghl_voice_agent_id", { length: 100 }),
   ctaCalendarLink: text("cta_calendar_link"),
   chatWidgetId: varchar("chat_widget_id", { length: 100 }),
   chatPersonaName: text("chat_persona_name"),
@@ -45,7 +52,12 @@ export const demosTable = pgTable("demos", {
   serviceArea: text("service_area"),
   customDemoMessage: text("custom_demo_message"),
   internalNotes: text("internal_notes"),
-  status: varchar("status", { length: 20 }).notNull().default("active"),
+  businessProfile: jsonb("business_profile"),
+  voiceAgentPackage: jsonb("voice_agent_package"),
+  aiGeneratedPrompt: text("ai_generated_prompt"),
+  currentWorkingPrompt: text("current_working_prompt"),
+  finalSavedPrompt: text("final_saved_prompt"),
+  status: varchar("status", { length: 30 }).notNull().default("active"),
   viewCount: integer("view_count").notNull().default(0),
   callClickCount: integer("call_click_count").notNull().default(0),
   calendarClickCount: integer("calendar_click_count").notNull().default(0),
@@ -74,3 +86,17 @@ export const demoEventsTable = pgTable("demo_events", {
 
 export type DemoEvent = typeof demoEventsTable.$inferSelect;
 export type InsertDemoEvent = typeof demoEventsTable.$inferInsert;
+
+export const promptVersionsTable = pgTable("prompt_versions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  demoId: varchar("demo_id").notNull().references(() => demosTable.id, { onDelete: "cascade" }),
+  type: varchar("type", { length: 30 }).notNull(),
+  promptText: text("prompt_text").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("IDX_prompt_versions_demo_id").on(table.demoId),
+]);
+
+export type PromptVersion = typeof promptVersionsTable.$inferSelect;
+export type InsertPromptVersion = typeof promptVersionsTable.$inferInsert;

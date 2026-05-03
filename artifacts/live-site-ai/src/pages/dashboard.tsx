@@ -109,9 +109,7 @@ export default function Dashboard() {
                       </TableCell>
                       <TableCell>{demo.industry || "-"}</TableCell>
                       <TableCell>
-                        <Badge variant={demo.status === "active" ? "default" : demo.status === "draft" ? "secondary" : "destructive"}>
-                          {demo.status}
-                        </Badge>
+                        <Badge variant={statusVariant(demo.status)}>{demo.status}</Badge>
                       </TableCell>
                       <TableCell className="text-right">{demo.viewCount}</TableCell>
                       <TableCell className="text-right">{demo.callClickCount}</TableCell>
@@ -186,6 +184,24 @@ export default function Dashboard() {
       </Card>
     </div>
   );
+}
+
+function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
+  switch (status) {
+    case "active":
+    case "approved":
+    case "pushed_to_ghl":
+      return "default";
+    case "enriched":
+    case "edited":
+    case "copied":
+      return "secondary";
+    case "inactive":
+    case "failed":
+      return "destructive";
+    default:
+      return "outline";
+  }
 }
 
 function MetricCard({ title, value, icon, isLoading }: { title: string, value?: number, icon: React.ReactNode, isLoading: boolean }) {
