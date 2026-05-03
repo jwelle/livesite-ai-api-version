@@ -51,6 +51,12 @@ async function getUniqueSlug(base: string, excludeId?: string): Promise<string> 
   }
 }
 
+function sanitizeWidgetId(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const cleaned = value.trim().replace(/^["'`]+|["'`]+$/g, "").trim();
+  return cleaned.length > 0 ? cleaned : null;
+}
+
 function normalizeUrl(url: string): string {
   if (!url) return url;
   if (!/^https?:\/\//i.test(url)) {
@@ -102,8 +108,9 @@ router.post("/demos", async (req, res) => {
     data.ctaCalendarLink ||
     settings?.defaultCalendarLink ||
     DEFAULT_CALENDAR_LINK;
-  const chatWidgetId =
-    data.chatWidgetId || settings?.defaultGhlWidgetId || null;
+  const chatWidgetId = sanitizeWidgetId(
+    data.chatWidgetId || settings?.defaultGhlWidgetId || null,
+  );
   const chatPersonaName =
     data.chatPersonaName || settings?.defaultChatPersonaName || null;
   const voicePersonaName =
@@ -193,7 +200,7 @@ router.patch("/demos/:id", async (req, res) => {
   if (data.voicePersonaName !== undefined) updates.voicePersonaName = data.voicePersonaName;
   if (data.voiceAiGoal !== undefined) updates.voiceAiGoal = data.voiceAiGoal;
   if (data.ctaCalendarLink !== undefined) updates.ctaCalendarLink = data.ctaCalendarLink;
-  if (data.chatWidgetId !== undefined) updates.chatWidgetId = data.chatWidgetId;
+  if (data.chatWidgetId !== undefined) updates.chatWidgetId = sanitizeWidgetId(data.chatWidgetId);
   if (data.chatPersonaName !== undefined) updates.chatPersonaName = data.chatPersonaName;
   if (data.companyDescription !== undefined) updates.companyDescription = data.companyDescription;
   if (data.servicesOffered !== undefined) updates.servicesOffered = data.servicesOffered;

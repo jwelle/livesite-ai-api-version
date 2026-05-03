@@ -32,15 +32,25 @@ export default function PublicDemo() {
   }, [demo, slug, trackView]);
 
   useEffect(() => {
-    if (!demo?.resolvedChatWidgetId) return;
-    const existingScript = document.querySelector('script[src="https://beta.leadconnectorhq.com/loader.js"]');
-    if (existingScript) return;
+    const widgetId = demo?.resolvedChatWidgetId;
+    if (!widgetId) return;
+    document
+      .querySelectorAll('script[data-ghl-widget-loader="true"]')
+      .forEach((s) => s.remove());
+    document.querySelectorAll("chat-widget").forEach((el) => el.remove());
     const script = document.createElement("script");
     script.src = "https://beta.leadconnectorhq.com/loader.js";
-    script.setAttribute("data-resources-url", "https://beta.leadconnectorhq.com/chat-widget/loader.js");
-    script.setAttribute("data-widget-id", demo.resolvedChatWidgetId);
-    script.async = true;
+    script.setAttribute(
+      "data-resources-url",
+      "https://beta.leadconnectorhq.com/chat-widget/loader.js",
+    );
+    script.setAttribute("data-widget-id", widgetId);
+    script.setAttribute("data-ghl-widget-loader", "true");
     document.body.appendChild(script);
+    return () => {
+      script.remove();
+      document.querySelectorAll("chat-widget").forEach((el) => el.remove());
+    };
   }, [demo?.resolvedChatWidgetId]);
 
   if (isLoading) {

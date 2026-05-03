@@ -57,7 +57,10 @@ router.patch("/settings", async (req, res) => {
   if (data.defaultVoiceAiPhone !== undefined) updates.defaultVoiceAiPhone = data.defaultVoiceAiPhone;
   if (data.defaultVoicePersonaName !== undefined) updates.defaultVoicePersonaName = data.defaultVoicePersonaName;
   if (data.defaultCalendarLink !== undefined) updates.defaultCalendarLink = data.defaultCalendarLink;
-  if (data.defaultGhlWidgetId !== undefined) updates.defaultGhlWidgetId = data.defaultGhlWidgetId;
+  if (data.defaultGhlWidgetId !== undefined) {
+    const v = data.defaultGhlWidgetId?.trim().replace(/^["'`]+|["'`]+$/g, "").trim();
+    updates.defaultGhlWidgetId = v && v.length > 0 ? v : null;
+  }
   if (data.defaultChatPersonaName !== undefined) updates.defaultChatPersonaName = data.defaultChatPersonaName;
 
   await getOrCreateSettings(req.user.id);
