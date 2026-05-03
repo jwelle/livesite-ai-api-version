@@ -269,6 +269,70 @@ paths:
         '401':
           description: Unauthorized
 
+  /demos/{id}/analyze-website:
+    post:
+      tags: [demos]
+      operationId: analyzeDemoWebsite
+      summary: Fetch the demo's website and generate AI prompt suggestions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeWebsiteBody'
+      responses:
+        '200':
+          description: Demo updated with website intelligence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeWebsiteResponse'
+        '400':
+          description: Validation or fetch error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeWebsiteError'
+        '404':
+          description: Not found
+        '401':
+          description: Unauthorized
+
+  /demos/{id}/apply-website-intelligence:
+    post:
+      tags: [demos]
+      operationId: applyDemoWebsiteIntelligence
+      summary: Copy generated website-intelligence fields into the demo's editable fields
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyWebsiteIntelligenceBody'
+      responses:
+        '200':
+          description: Demo updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Demo'
+        '404':
+          description: Not found
+        '401':
+          description: Unauthorized
+
   /demos/{id}/regenerate-slug:
     post:
       tags: [demos]
@@ -796,6 +860,70 @@ components:
           type: [string, 'null']
         internalNotes:
           type: [string, 'null']
+        websiteTitle:
+          type: [string, 'null']
+        websiteMetaDescription:
+          type: [string, 'null']
+        websiteHeadings:
+          oneOf:
+            - type: array
+              items: { type: string }
+            - type: 'null'
+        websiteRawTextExcerpt:
+          type: [string, 'null']
+        extractedBusinessSummary:
+          type: [string, 'null']
+        extractedServices:
+          oneOf:
+            - type: array
+              items: { type: string }
+            - type: 'null'
+        extractedServiceArea:
+          type: [string, 'null']
+        extractedFaqs:
+          oneOf:
+            - type: array
+              items:
+                type: object
+                required: [question, answer_guidance]
+                properties:
+                  question: { type: string }
+                  answer_guidance: { type: string }
+            - type: 'null'
+        extractedTone:
+          type: [string, 'null']
+        extractedTargetCustomers:
+          type: [string, 'null']
+        suggestedChatPersona:
+          type: [string, 'null']
+        suggestedVoicePersona:
+          type: [string, 'null']
+        suggestedLeadQuestions:
+          oneOf:
+            - type: array
+              items: { type: string }
+            - type: 'null'
+        generatedChatContext:
+          type: [string, 'null']
+        generatedVoicePrompt:
+          type: [string, 'null']
+        missingInformation:
+          oneOf:
+            - type: array
+              items: { type: string }
+            - type: 'null'
+        websiteAnalysisStatus:
+          type: string
+          enum: [not_started, in_progress, completed, failed]
+        websiteAnalysisError:
+          type: [string, 'null']
+        websiteAnalyzedAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - type: 'null'
+        websiteAnalysisSource:
+          type: [string, 'null']
+          enum: [openai, basic, null]
         status:
           type: string
           enum: [active, inactive, draft]
@@ -903,6 +1031,8 @@ components:
       required:
         - id
         - userId
+        - enableOpenAiWebsiteIntelligence
+        - hasOpenAiKey
         - createdAt
         - updatedAt
       properties:
@@ -930,6 +1060,10 @@ components:
           type: [string, 'null']
         defaultChatPersonaName:
           type: [string, 'null']
+        enableOpenAiWebsiteIntelligence:
+          type: boolean
+        hasOpenAiKey:
+          type: boolean
         createdAt:
           type: string
           format: date-time
@@ -960,6 +1094,47 @@ components:
           type: [string, 'null']
         defaultChatPersonaName:
           type: [string, 'null']
+        enableOpenAiWebsiteIntelligence:
+          type: boolean
+
+    AnalyzeWebsiteBody:
+      type: object
+      description: Empty body. OpenAI use is controlled by the agency's persisted enableOpenAiWebsiteIntelligence setting plus server-side key presence; the client cannot override it.
+      properties: {}
+
+    AnalyzeWebsiteResponse:
+      type: object
+      required: [demo, source, warnings]
+      properties:
+        demo:
+          $ref: '#/components/schemas/Demo'
+        source:
+          type: string
+          enum: [openai, basic]
+        warnings:
+          type: array
+          items: { type: string }
+
+    AnalyzeWebsiteError:
+      type: object
+      required: [error, code]
+      properties:
+        error: { type: string }
+        code:
+          type: string
+          enum: [INVALID_URL, BLOCKED_PROTOCOL, BLOCKED_HOST, DNS_ERROR, TIMEOUT, FETCH_FAILED, HTTP_ERROR, NON_HTML, ANALYSIS_FAILED]
+
+    ApplyWebsiteIntelligenceBody:
+      type: object
+      required: [overwrite]
+      description: |
+        When overwrite is false, only empty target fields are filled.
+        When overwrite is true, populated fields are replaced too. The
+        UI is responsible for confirming with the user before sending
+        overwrite=true.
+      properties:
+        overwrite:
+          type: boolean
 
     DashboardStats:
       type: object

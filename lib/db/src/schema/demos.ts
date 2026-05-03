@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./auth";
@@ -17,6 +17,7 @@ export const agencySettingsTable = pgTable("agency_settings", {
   defaultCalendarLink: text("default_calendar_link"),
   defaultGhlWidgetId: varchar("default_ghl_widget_id", { length: 100 }),
   defaultChatPersonaName: text("default_chat_persona_name"),
+  enableOpenAiWebsiteIntelligence: boolean("enable_openai_website_intelligence").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
@@ -49,6 +50,26 @@ export const demosTable = pgTable("demos", {
   viewCount: integer("view_count").notNull().default(0),
   callClickCount: integer("call_click_count").notNull().default(0),
   calendarClickCount: integer("calendar_click_count").notNull().default(0),
+  websiteTitle: text("website_title"),
+  websiteMetaDescription: text("website_meta_description"),
+  websiteHeadings: jsonb("website_headings"),
+  websiteRawTextExcerpt: text("website_raw_text_excerpt"),
+  extractedBusinessSummary: text("extracted_business_summary"),
+  extractedServices: jsonb("extracted_services"),
+  extractedServiceArea: text("extracted_service_area"),
+  extractedFaqs: jsonb("extracted_faqs"),
+  extractedTone: text("extracted_tone"),
+  extractedTargetCustomers: text("extracted_target_customers"),
+  suggestedChatPersona: text("suggested_chat_persona"),
+  suggestedVoicePersona: text("suggested_voice_persona"),
+  suggestedLeadQuestions: jsonb("suggested_lead_questions"),
+  generatedChatContext: text("generated_chat_context"),
+  generatedVoicePrompt: text("generated_voice_prompt"),
+  missingInformation: jsonb("missing_information"),
+  websiteAnalysisStatus: varchar("website_analysis_status", { length: 30 }).notNull().default("not_started"),
+  websiteAnalysisError: text("website_analysis_error"),
+  websiteAnalyzedAt: timestamp("website_analyzed_at", { withTimezone: true }),
+  websiteAnalysisSource: varchar("website_analysis_source", { length: 30 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
