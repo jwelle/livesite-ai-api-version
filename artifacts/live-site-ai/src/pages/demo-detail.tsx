@@ -30,7 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Spinner } from "@/components/ui/spinner";
 import { format } from "date-fns";
-import { useAuth } from "@workspace/replit-auth-web";
+import { authFetch, useAuth } from "@workspace/replit-auth-web";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   active: "default",
@@ -179,7 +179,7 @@ export default function DemoDetail() {
 
   const handleExportMd = async () => {
     try {
-      const res = await fetch(getExportDemoMarkdownUrl(demo.id), { method: "POST", credentials: "include" });
+      const res = await authFetch(getExportDemoMarkdownUrl(demo.id), { method: "POST" });
       if (!res.ok) throw new Error(`Export failed (${res.status})`);
       const text = await res.text();
       const blob = new Blob([text], { type: "text/markdown" });
@@ -193,7 +193,7 @@ export default function DemoDetail() {
 
   const handleExportJson = async () => {
     try {
-      const res = await fetch(getExportDemoJsonUrl(demo.id), { method: "POST", credentials: "include" });
+      const res = await authFetch(getExportDemoJsonUrl(demo.id), { method: "POST" });
       if (!res.ok) throw new Error(`Export failed (${res.status})`);
       const json = await res.json();
       const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });

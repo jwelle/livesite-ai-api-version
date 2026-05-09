@@ -6,12 +6,19 @@ import {
   adminAuditLogTable,
   userInvitesTable,
   dailyUsageTable,
+  adminImpersonationsTable,
 } from "@workspace/db";
 import { eq, ilike, or, sql, desc, count, inArray, and } from "drizzle-orm";
 import crypto from "crypto";
 import { requireAdmin, blockDuringImpersonation } from "../middlewares/authMiddleware";
 import { logAdminAction } from "../services/audit";
-import { updateSession, getSession, clearSession } from "../lib/auth";
+import {
+  clearImpersonation,
+  clearImpersonationCookie,
+  createImpersonation,
+  getImpersonationToken,
+  setImpersonationCookie,
+} from "../lib/auth";
 import { getUsageDateString } from "../lib/config";
 
 const router = Router();
@@ -172,8 +179,8 @@ router.post("/admin/users", blockDuringImpersonation, async (req, res) => {
     return;
   }
 
-  // Create a placeholder row with a synthetic id. The real id is rewritten
-  // when the user first signs in (see auth.ts/upsertUser).
+  // Create a placeholder row with a synthetic id. The row is bound to the
+  // user's Supabase identity the first time they authenticate.
   const placeholderId = `manual_${crypto.randomBytes(12).toString("hex")}`;
   const [created] = await db
     .insert(usersTable)
@@ -211,8 +218,15 @@ router.post("/admin/users/:id/reject", blockDuringImpersonation, async (req, res
     .where(eq(usersTable.id, id))
     .returning();
   if (!target) { res.status(404).json({ error: "NOT_FOUND", message: "User not found" }); return; }
-  // Best-effort: kill any active sessions for this user.
   await db.execute(sql`DELETE FROM sessions WHERE sess->'user'->>'id' = ${id}`);
+  await db
+    .delete(adminImpersonationsTable)
+    .where(
+      or(
+        eq(adminImpersonationsTable.targetUserId, id),
+        eq(adminImpersonationsTable.adminUserId, id),
+      )!,
+    );
   await audit(req, "user_reject", id, { email: target.email });
   res.json({ success: true, user: target });
 });
@@ -230,6 +244,14 @@ router.post("/admin/users/:id/suspend", blockDuringImpersonation, async (req, re
     .returning();
   if (!target) { res.status(404).json({ error: "NOT_FOUND", message: "User not found" }); return; }
   await db.execute(sql`DELETE FROM sessions WHERE sess->'user'->>'id' = ${id}`);
+  await db
+    .delete(adminImpersonationsTable)
+    .where(
+      or(
+        eq(adminImpersonationsTable.targetUserId, id),
+        eq(adminImpersonationsTable.adminUserId, id),
+      )!,
+    );
   await audit(req, "user_suspend", id, { email: target.email });
   res.json({ success: true, user: target });
 });
@@ -426,19 +448,18 @@ router.get("/admin/audit-log", async (req, res) => {
 
 // ---- IMPERSONATION (unchanged) -------------------------------------------
 router.post("/admin/impersonate/exit", async (req, res) => {
-  const sid = req.sessionId;
-  if (!sid) {
+  if (!req.realUser) {
     res.status(401).json({ error: "UNAUTHORIZED", message: "Unauthorized" });
     return;
   }
-  const session = await getSession(sid);
-  if (!session?.impersonation) {
+  const token = getImpersonationToken(req);
+  if (!token || !req.impersonation) {
     res.json({ success: true });
     return;
   }
-  const previous = session.impersonation;
-  delete session.impersonation;
-  await updateSession(sid, session);
+  const previous = req.impersonation;
+  await clearImpersonation(req.realUser.id, token);
+  clearImpersonationCookie(res);
   await logAdminAction({
     actorId: req.realUser!.id,
     actorEmail: req.realUser!.email,
@@ -464,18 +485,8 @@ router.post("/admin/impersonate/:userId", blockDuringImpersonation, async (req, 
     res.status(404).json({ error: "NOT_FOUND", message: "User not found" });
     return;
   }
-  const sid = req.sessionId!;
-  const session = await getSession(sid);
-  if (!session) {
-    res.status(401).json({ error: "UNAUTHORIZED", message: "Session not found" });
-    return;
-  }
-  session.impersonation = {
-    targetUserId: target.id,
-    targetEmail: target.email,
-    startedAt: Date.now(),
-  };
-  await updateSession(sid, session);
+  const token = await createImpersonation(req.realUser!.id, target.id);
+  setImpersonationCookie(res, token);
   await logAdminAction({
     actorId: req.realUser!.id,
     actorEmail: req.realUser!.email,
@@ -489,8 +500,5 @@ router.post("/admin/impersonate/:userId", blockDuringImpersonation, async (req, 
     impersonating: { targetUserId: target.id, targetEmail: target.email },
   });
 });
-
-// Suppress unused-warning for clearSession import (kept available for future use).
-void clearSession;
 
 export default router;

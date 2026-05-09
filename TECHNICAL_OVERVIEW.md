@@ -26,7 +26,7 @@ Live Site AI application as it stands today.
 
 ### Core flows
 
-1. **Sign in** → Replit OIDC.
+1. **Sign in** → Supabase Auth.
 2. **Create a demo** → enter prospect's company name, website URL, voice-agent goal, tone, primary CTA.
 3. **Run AI enrichment** → server calls OpenAI Responses API with `web_search` to research the business and generate a structured business profile + voice-agent package + a final voice-agent system prompt.
 4. **Edit / refine the prompt** → user can hand-edit the working prompt, regenerate (replace or save-as-separate-version), or restore any prior version from history.
@@ -52,7 +52,7 @@ lib/                            ← shared libraries (workspace packages)
   api-spec/                     ← OpenAPI YAML — single source of truth
   api-zod/                      ← Generated Zod request/response validators
   api-client-react/             ← Generated TanStack Query hooks (orval)
-  replit-auth-web/              ← Browser useAuth() hook for Replit OIDC
+  replit-auth-web/              ← Browser auth helpers (Supabase-backed)
 
 scripts/                        ← post-merge / setup utilities
 ```
@@ -86,7 +86,7 @@ scripts/                        ← post-merge / setup utilities
 | Styling | **Tailwind CSS v4** | `@tailwindcss/vite` |
 | Icons | **lucide-react** | |
 | Backend framework | **Express 5** | |
-| Auth | **Replit OIDC** (`openid-client`) | PKCE; sessions in Postgres via `connect-pg-simple` |
+| Auth | **Supabase Auth** | Email/password + Google OAuth in the browser; Express verifies Supabase JWTs |
 | Database | **PostgreSQL** (Neon-backed via `DATABASE_URL`) | |
 | ORM | **Drizzle ORM** | `drizzle-zod` for insert schemas |
 | Validation | **Zod (zod/v4)** | Server uses generated schemas |
@@ -106,7 +106,7 @@ scripts/                        ← post-merge / setup utilities
 │                     Browser (React + Vite)                        │
 │                                                                   │
 │   /                  → marketing landing                          │
-│   /login /signup     → Replit OIDC entry                          │
+│   /login /signup     → Supabase Auth entry                        │
 │   /dashboard         → demos table + KPIs                         │
 │   /demos/new|:id     → form / detail / prompt editor              │
 │   /settings          → agency-wide defaults                       │
@@ -121,7 +121,7 @@ scripts/                        ← post-merge / setup utilities
 │   Express API (api-server)            │   │ leadconnectorhq.com  │
 │                                       │   │ chat-widget loader   │
 │   Routes:                             │   └──────────────────────┘
-│     /auth/*    OIDC                   │
+│     /auth/*    Supabase Auth bridge   │
 │     /demos/*   CRUD + enrich +        │
 │                regenerate + export    │   ┌──────────────────────┐
 │     /settings  agency settings        │   │   OpenAI Responses   │
@@ -137,8 +137,9 @@ scripts/                        ← post-merge / setup utilities
                ▼
 ┌──────────────────────────────────────┐
 │   PostgreSQL                          │
-│   - sessions (OIDC store)             │
-│   - users, admin_audit_log            │
+│   - sessions (legacy session store)   │
+│   - users, admin_impersonations,      │
+│   - admin_audit_log                   │
 │   - agency_settings                   │
 │   - demos, demo_events,               │
 │   - prompt_versions                   │
@@ -148,8 +149,8 @@ scripts/                        ← post-merge / setup utilities
 ### Request lifecycle
 
 1. Browser SPA loads from Vite (dev) or static build behind Express (prod).
-2. Generated React Query hooks call `/api/...` with credentials (cookie-based session).
-3. `authMiddleware` resolves the session ID from the cookie, refreshes the OIDC token if expired, loads the user from DB, and (if admin is impersonating) substitutes `req.user` with the target user while keeping `req.realUser` and `req.impersonation` set.
+2. Generated React Query hooks call `/api/...` with the Supabase bearer token and same-origin credentials.
+3. `authMiddleware` verifies the Supabase JWT, loads or creates the app user row, and (if admin is impersonating) substitutes `req.user` with the target user while keeping `req.realUser` and `req.impersonation` set.
 4. Route handlers validate input with the generated Zod schemas (`@workspace/api-zod`), perform Drizzle queries, and return JSON.
 5. Mutating routes apply `blockDuringImpersonation` so admins reviewing as another user can never accidentally write data on their behalf.
 
@@ -174,7 +175,7 @@ regenerated from the same `openapi.yaml`, so the contract cannot drift.
 
 All tables live in `lib/db/src/schema/*` and are exported via `@workspace/db`.
 
-### `sessions` (OIDC store — required by Replit Auth)
+### `sessions` (legacy session store)
 | Column | Type | Notes |
 |---|---|---|
 | `sid` | varchar PK | session id (cookie value) |
@@ -184,8 +185,9 @@ All tables live in `lib/db/src/schema/*` and are exported via `@workspace/db`.
 ### `users`
 | Column | Type | Notes |
 |---|---|---|
-| `id` | varchar PK (uuid) | matches OIDC `sub` |
-| `email`, `first_name`, `last_name`, `profile_image_url` | varchar | from OIDC |
+| `id` | varchar PK (uuid) | app user id |
+| `supabase_auth_user_id` | varchar unique | Supabase Auth user id |
+| `email`, `first_name`, `last_name`, `profile_image_url` | varchar | from Supabase Auth profile claims |
 | `role` | varchar(20) | `user` \| `admin` |
 | `status` | varchar(20) | `active` \| `suspended` |
 | `created_at`, `updated_at` | timestamptz | auto |
@@ -295,7 +297,7 @@ This is sufficient for V1 single-instance deployments; a shared store (Redis or 
 | Path | Auth | Purpose |
 |---|---|---|
 | `/` | public | Marketing landing |
-| `/login`, `/signup` | public | Replit OIDC entry buttons (no forms) |
+| `/login`, `/signup` | public | Supabase Auth entry forms |
 | `/dashboard` | auth | KPI cards + demos table + actions |
 | `/demos/new`, `/demos/:id/edit` | auth | Create/edit demo form |
 | `/demos/:id` | auth | Demo detail + prompt editor + version history + exports |
@@ -339,12 +341,12 @@ The page also returns the *source* of the resolved id so the UI / future debuggi
 
 ## 8. Authentication & Authorization
 
-### Auth flow (Replit OIDC)
-1. User clicks **Log in** → frontend redirects to `/api/login`.
-2. Server starts the OIDC code-flow with PKCE (`openid-client`), redirects to Replit's identity provider.
-3. Provider redirects back to `/api/callback` with the auth code.
-4. Server exchanges code → tokens, upserts the user in `users`, stores `{ access_token, refresh_token, expires_at, user }` in the `sessions` table, sets a session cookie.
-5. On every subsequent request, `authMiddleware` reads the cookie, loads the session, refreshes the access token if expired, and populates `req.user`.
+### Auth flow (Supabase Auth)
+1. User signs in on `/login` or `/signup` with email/password or Google OAuth.
+2. Supabase stores the browser session client-side and returns an access token.
+3. Browser API calls send `Authorization: Bearer <token>` plus same-origin cookies.
+4. Express verifies the Supabase JWT, upserts the matching app user row in `users`, and applies role/status/tier rules.
+5. If an invite token is pending, the frontend calls `/api/auth/finalize-invite` after auth so the backend can atomically redeem it.
 
 ### Authorization layers
 - **`requireAdmin`** — `req.realUser.role === "admin"` or 403.
@@ -369,8 +371,8 @@ Path summary (full schemas in `lib/api-spec/openapi.yaml`):
 ### Health & auth
 - `GET /healthz`
 - `GET /auth/user` — current user (with `impersonating` flag if applicable)
-- `GET /login`, `GET /callback`, `GET /logout`
-- `POST /mobile-auth/token-exchange`, `POST /mobile-auth/logout` *(future-proofing for an Expo client)*
+- `GET /auth/invite-status`, `POST /auth/finalize-invite`
+- `POST /auth/logout`
 
 ### Demos
 - `GET /demos` — list owned demos (auto-seeds one demo on first call if user has none).
@@ -413,8 +415,12 @@ Path summary (full schemas in `lib/api-spec/openapi.yaml`):
 | Variable | Required | Purpose |
 |---|---|---|
 | `DATABASE_URL` | yes | PostgreSQL connection string. |
-| `SESSION_SECRET` | yes (prod) | Signs the session cookie. |
-| `REPLIT_OIDC_*` | yes | Replit Auth client config (managed by the platform). |
+| `VITE_SUPABASE_URL` | yes (frontend) | Supabase project URL for browser auth. |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | yes (frontend) | Supabase publishable key for browser auth. |
+| `VITE_API_BASE_URL` | optional | Override API origin for browser clients when the frontend and API are not same-origin locally. |
+| `SUPABASE_URL` | yes (server) | Supabase project URL used to derive the JWT issuer/JWKS endpoint. |
+| `SUPABASE_JWT_AUDIENCE` | optional | JWT audience, defaults to `authenticated`. |
+| `SUPABASE_JWT_SECRET` | optional | Legacy HS256 fallback only if the project has not moved to asymmetric signing keys. |
 | `OPENAI_API_KEY` *or* `AI_INTEGRATIONS_OPENAI_API_KEY` | yes (for AI features) | Used server-side only — never sent to the browser. |
 | `AI_INTEGRATIONS_OPENAI_BASE_URL` | optional | Override for proxy / Replit AI Integrations. |
 | `OPENAI_ENRICHMENT_MODEL` | optional | Model name override. Defaults to `gpt-5-mini`. |
@@ -456,7 +462,7 @@ Path summary (full schemas in `lib/api-spec/openapi.yaml`):
 - Per-user 5/min rate limit on enrichment / regeneration.
 - Per-resource ownership enforced on every demo / settings endpoint.
 - Mutations blocked while an admin is impersonating another user.
-- Suspended users have sessions invalidated on next request.
+- Suspended users are blocked by auth middleware on the next authenticated request.
 - pnpm `minimumReleaseAge: 1440` (24h) defends against fresh malicious npm publishes.
 - `/openai-status` is public but only exposes a boolean, not the key.
 

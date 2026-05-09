@@ -22,7 +22,7 @@ export const GetCurrentAuthUserHeader = zod.object({
   Authorization: zod
     .string()
     .optional()
-    .describe("Opaque session token — `Bearer <sid>`."),
+    .describe("Supabase access token — `Bearer <jwt>`."),
 });
 
 export const GetCurrentAuthUserResponse = zod.object({
@@ -51,51 +51,88 @@ export const GetCurrentAuthUserResponse = zod.object({
 });
 
 /**
- * @summary Start the browser OIDC login flow
- */
-export const BeginBrowserLoginQueryParams = zod.object({
-  returnTo: zod.coerce
-    .string()
-    .optional()
-    .describe(
-      "Relative path to redirect to after login (must start with `\/`). Defaults to `\/`.",
-    ),
-});
-
-/**
- * @summary Complete the browser OIDC login flow
- */
-export const HandleBrowserLoginCallbackQueryParams = zod.object({
-  code: zod.coerce.string().optional(),
-  state: zod.coerce.string().optional(),
-  iss: zod.coerce.string().url().optional(),
-});
-
-/**
- * @summary Clear the session and begin OIDC logout
+ * @summary Clear server-side impersonation state and redirect home
  */
 export const LogoutBrowserSessionHeader = zod.object({
   Authorization: zod
     .string()
     .optional()
-    .describe("Opaque session token — `Bearer <sid>`."),
+    .describe("Supabase access token — `Bearer <jwt>`."),
 });
 
 /**
- * @summary Exchange a mobile OIDC code for a session token
+ * @summary Clear server-side impersonation state
  */
-
-export const ExchangeMobileAuthorizationCodeBody = zod.object({
-  code: zod.string().min(1),
-  code_verifier: zod.string().min(1),
-  redirect_uri: zod.string().url().min(1),
-  state: zod.string().min(1),
-  nonce: zod.string().min(1).optional(),
+export const LogoutBrowserSessionPostResponse = zod.object({
+  success: zod.boolean(),
 });
 
-export const ExchangeMobileAuthorizationCodeResponse = zod.object({
-  token: zod.string(),
+/**
+ * @summary Resolve invite token validity and metadata
+ */
+export const GetInviteStatusQueryParams = zod.object({
+  token: zod.coerce.string(),
 });
+
+export const GetInviteStatusResponse = zod.object({
+  invite: zod.object({
+    token: zod.string(),
+    tier: zod.enum(["free", "pro"]),
+    invitedEmail: zod.string().nullable(),
+    expiresAt: zod.union([zod.coerce.date(), zod.null()]),
+    consumedAt: zod.union([zod.coerce.date(), zod.null()]),
+    revokedAt: zod.union([zod.coerce.date(), zod.null()]),
+  }),
+  status: zod.string(),
+});
+
+/**
+ * @summary Redeem an invite token for the authenticated user
+ */
+export const FinalizeInviteBody = zod.object({
+  inviteToken: zod.string(),
+});
+
+export const FinalizeInviteResponse = zod
+  .object({
+    success: zod.boolean(),
+    invite: zod.object({
+      token: zod.string(),
+      tier: zod.enum(["free", "pro"]),
+      invitedEmail: zod.string().nullable(),
+      expiresAt: zod.union([zod.coerce.date(), zod.null()]),
+      consumedAt: zod.union([zod.coerce.date(), zod.null()]),
+      revokedAt: zod.union([zod.coerce.date(), zod.null()]),
+    }),
+  })
+  .and(
+    zod.object({
+      user: zod.union([
+        zod.object({
+          id: zod.string(),
+          email: zod.string().email().nullable(),
+          firstName: zod.string().nullable(),
+          lastName: zod.string().nullable(),
+          profileImageUrl: zod.string().nullable(),
+          role: zod.enum(["user", "admin"]).optional(),
+          status: zod
+            .enum(["active", "suspended", "pending_approval"])
+            .optional(),
+          tier: zod.enum(["free", "pro"]).optional(),
+          impersonating: zod
+            .union([
+              zod.object({
+                targetUserId: zod.string(),
+                targetEmail: zod.string().nullable(),
+              }),
+              zod.null(),
+            ])
+            .optional(),
+        }),
+        zod.null(),
+      ]),
+    }),
+  );
 
 /**
  * @summary Delete a mobile session token
@@ -104,7 +141,7 @@ export const LogoutMobileSessionHeader = zod.object({
   Authorization: zod
     .string()
     .optional()
-    .describe("Opaque session token — `Bearer <sid>`."),
+    .describe("Supabase access token — `Bearer <jwt>`."),
 });
 
 export const LogoutMobileSessionResponse = zod.object({
