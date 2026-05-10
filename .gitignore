@@ -10,6 +10,16 @@ out-tsc
 
 # dependencies
 node_modules
+.pnpm-store/
+
+# local environment, secrets, and portable tooling
+.env
+.env.*
+!.env.example
+!.env.*.example
+.tools/
+.local-test-user.json
+.local-auth-callback-url.txt
 
 # IDEs and editors
 /.idea
@@ -35,6 +45,7 @@ node_modules
 npm-debug.log
 yarn-error.log
 testem.log
+*.log
 /typings
 
 # System Files

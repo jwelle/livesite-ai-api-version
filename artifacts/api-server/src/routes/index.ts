@@ -10,9 +10,9 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(publicDemoRouter);
 router.use(adminRouter);
 router.use(demosRouter);
 router.use(settingsRouter);
-router.use(publicDemoRouter);
 
 export default router;
