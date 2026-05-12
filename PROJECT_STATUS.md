@@ -1,6 +1,6 @@
 # Livesite AI Project Status
 
-Last updated: May 10, 2026
+Last updated: May 12, 2026
 
 ## Current State
 
@@ -16,6 +16,8 @@ Livesite AI is on branch `codex/supabase-auth-migration-stabilization` and is po
 - API admin route gating is scoped so non-admin API routes are no longer intercepted.
 - External API MVP routes exist under `/api/v1/*` for API-key creation and demo-request creation.
 - Vercel configuration has been added for a frontend build plus Express API serverless handler.
+- Public frontend demo route `/demo/:slug` is confirmed working locally in Chrome.
+- Remaining public-demo-related fixes have been narrowed to dashboard/admin browser UX, not auth or public routing.
 
 ## Active Project Plugins
 
@@ -47,12 +49,21 @@ Note: Codex app tools are available in-session even though the local `codex mcp 
 - API and frontend typechecks pass.
 - API build passes and emits local + Vercel entrypoints.
 - Frontend production build passes with local `PORT=8081` and `BASE_PATH=/`.
+- Local API and frontend startup were re-verified on `http://localhost:8080` and `http://localhost:8081`, including `/api/healthz` through both origins.
+- Public demo frontend route was verified manually in Chrome at `http://localhost:8081/demo/shoreline-roofing-u3d2`.
+- Dashboard demo detail page UX was fixed:
+  - `Copy Link` now uses async clipboard write and falls back to a clean toast instead of rendering a copy/read field.
+  - `Open Public Demo` now opens the absolute `/demo/:slug` URL with popup-block fallback to same-tab navigation.
+- Admin demos page UX was fixed:
+  - `Open Public Demo` now uses the same resilient absolute URL open helper.
+  - `View as owner` is disabled for self-owned demos so the UI no longer calls impersonation for the current admin user.
+- Frontend typecheck passed after the dashboard/admin UX changes.
 
 ## Immediate Next Steps
 
 1. Browser-test full user signup and login with a new real account.
 2. Confirm Supabase Auth redirect URLs include local and Vercel preview URLs.
-3. Browser-test manual dashboard flow:
+3. Browser-test remaining authenticated dashboard flow:
    - create demo
    - edit settings/demo
    - run AI enrichment
@@ -71,6 +82,7 @@ Note: Codex app tools are available in-session even though the local `codex mcp 
 - OpenAI enrichment requires `OPENAI_API_KEY` or `AI_INTEGRATIONS_OPENAI_API_KEY`.
 - Some Vite/esbuild/codegen commands can fail inside Codex's Windows sandbox with path access errors; run them in normal PowerShell or approve unrestricted execution when needed.
 - Vercel preview still needs environment variables set and Supabase Auth redirect URLs updated.
+- Clipboard behavior in the Codex in-app browser can differ from normal Chrome; the UI now handles that case with toast-based fallbacks instead of inline copy fields.
 
 ## Useful Commands
 
