@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Login from "@/pages/login";
+import AuthCallback from "@/pages/auth-callback";
 import Dashboard from "@/pages/dashboard";
 import DemoForm from "@/pages/demo-form";
 import DemoDetail from "@/pages/demo-detail";
@@ -33,6 +34,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
+      <Route path="/auth/callback" component={AuthCallback} />
       <Route path="/demo/:slug" component={PublicDemo} />
       
       {/* App Routes */}

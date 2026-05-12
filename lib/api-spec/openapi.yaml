@@ -54,89 +54,88 @@ paths:
     get:
       tags: [Auth]
       operationId: beginBrowserLogin
-      summary: Start the browser OIDC login flow
-      parameters:
-        - name: returnTo
-          in: query
-          required: false
-          description: Relative path to redirect to after login (must start with `/`). Defaults to `/`.
-          schema:
-            type: string
+      summary: Legacy login endpoint
       responses:
-        '302':
-          description: Redirect to the OIDC authorization endpoint.
+        '410':
+          description: Browser login now happens client-side via Supabase Auth.
   /callback:
     get:
       tags: [Auth]
       operationId: handleBrowserLoginCallback
-      summary: Complete the browser OIDC login flow
-      parameters:
-        - name: code
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: state
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: iss
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uri
+      summary: Legacy callback endpoint
       responses:
-        '302':
-          description: Redirect to the `returnTo` path on success (defaults to `/`) or `/api/login` on failure.
+        '410':
+          description: Legacy callback has been replaced by client-side Supabase Auth.
   /logout:
     get:
       tags: [Auth]
       operationId: logoutBrowserSession
-      summary: Clear the session and begin OIDC logout
+      summary: Clear server-side impersonation state and redirect home
       parameters:
         - $ref: '#/components/parameters/AuthorizationSessionHeader'
         - $ref: '#/components/parameters/SessionCookie'
       responses:
         '302':
-          description: Redirect to the OIDC provider logout URL.
-  /mobile-auth/token-exchange:
+          description: Redirect home after clearing impersonation cookies.
     post:
       tags: [Auth]
-      operationId: exchangeMobileAuthorizationCode
-      summary: Exchange a mobile OIDC code for a session token
+      operationId: logoutBrowserSessionPost
+      summary: Clear server-side impersonation state
+      responses:
+        '200':
+          description: Logout cleanup processed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutSuccess'
+  /auth/invite-status:
+    get:
+      tags: [Auth]
+      operationId: getInviteStatus
+      summary: Resolve invite token validity and metadata
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Invite token resolved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteStatusEnvelope'
+  /auth/finalize-invite:
+    post:
+      tags: [Auth]
+      operationId: finalizeInvite
+      summary: Redeem an invite token for the authenticated user
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/MobileTokenExchangeRequest'
+              type: object
+              required: [inviteToken]
+              properties:
+                inviteToken:
+                  type: string
       responses:
         '200':
-          description: Session created successfully.
+          description: Invite redeemed successfully.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MobileTokenExchangeSuccess'
-        '400':
-          description: Missing or invalid required fields.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-        '401':
-          description: Token did not contain usable claims.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-        '500':
-          description: Token exchange failed.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
+                $ref: '#/components/schemas/FinalizeInviteEnvelope'
+  /mobile-auth/token-exchange:
+    post:
+      tags: [Auth]
+      operationId: exchangeMobileAuthorizationCode
+      summary: Legacy mobile auth endpoint
+      responses:
+        '410':
+          description: Mobile token exchange has been removed.
   /mobile-auth/logout:
     post:
       tags: [Auth]
@@ -853,14 +852,14 @@ components:
       name: Authorization
       in: header
       required: false
-      description: Opaque session token — `Bearer <sid>`.
+      description: Supabase access token — `Bearer <jwt>`.
       schema:
         type: string
     SessionCookie:
-      name: sid
+      name: lsi_impersonation
       in: cookie
       required: false
-      description: Browser session cookie.
+      description: App-managed admin impersonation cookie.
       schema:
         type: string
 
@@ -995,32 +994,48 @@ components:
           oneOf:
             - $ref: '#/components/schemas/AuthUser'
             - type: 'null'
-    MobileTokenExchangeRequest:
+    InviteSummary:
       type: object
-      required: [code, code_verifier, redirect_uri, state]
-      properties:
-        code:
-          type: string
-          minLength: 1
-        code_verifier:
-          type: string
-          minLength: 1
-        redirect_uri:
-          type: string
-          minLength: 1
-          format: uri
-        state:
-          type: string
-          minLength: 1
-        nonce:
-          type: string
-          minLength: 1
-    MobileTokenExchangeSuccess:
-      type: object
-      required: [token]
+      required: [token, tier, invitedEmail, expiresAt, consumedAt, revokedAt]
       properties:
         token:
           type: string
+        tier:
+          type: string
+          enum: [free, pro]
+        invitedEmail:
+          type: [string, 'null']
+        expiresAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        consumedAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        revokedAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+    InviteStatusEnvelope:
+      type: object
+      required: [invite, status]
+      properties:
+        invite:
+          $ref: '#/components/schemas/InviteSummary'
+        status:
+          type: string
+    FinalizeInviteEnvelope:
+      allOf:
+        - type: object
+          required: [success, invite]
+          properties:
+            success:
+              type: boolean
+              const: true
+            invite:
+              $ref: '#/components/schemas/InviteSummary'
+        - $ref: '#/components/schemas/AuthUserEnvelope'
     LogoutSuccess:
       type: object
       required: [success]

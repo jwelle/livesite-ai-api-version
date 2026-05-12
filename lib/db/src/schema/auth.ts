@@ -11,7 +11,8 @@ import {
   text,
 } from "drizzle-orm/pg-core";
 
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+// Legacy browser-session storage from the Replit OIDC implementation.
+// It is kept for backwards-compatibility while Supabase Auth rolls out.
 export const sessionsTable = pgTable(
   "sessions",
   {
@@ -22,11 +23,11 @@ export const sessionsTable = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 // status: "pending_approval" | "active" | "suspended"
 // tier: "free" | "pro"
 export const usersTable = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  supabaseAuthUserId: varchar("supabase_auth_user_id").unique(),
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
@@ -79,6 +80,28 @@ export const userInvitesTable = pgTable(
 
 export type UserInvite = typeof userInvitesTable.$inferSelect;
 export type InsertUserInvite = typeof userInvitesTable.$inferInsert;
+
+export const adminImpersonationsTable = pgTable(
+  "admin_impersonations",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    token: varchar("token", { length: 128 }).notNull().unique(),
+    adminUserId: varchar("admin_user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    targetUserId: varchar("target_user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("IDX_admin_impersonations_admin").on(table.adminUserId),
+    index("IDX_admin_impersonations_expires_at").on(table.expiresAt),
+  ],
+);
+
+export type AdminImpersonation = typeof adminImpersonationsTable.$inferSelect;
 
 export const dailyUsageTable = pgTable(
   "daily_usage",

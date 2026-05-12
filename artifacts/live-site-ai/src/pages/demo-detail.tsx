@@ -30,7 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Spinner } from "@/components/ui/spinner";
 import { format } from "date-fns";
-import { useAuth } from "@workspace/replit-auth-web";
+import { authFetch, useAuth } from "@workspace/replit-auth-web";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   active: "default",
@@ -84,6 +84,7 @@ export default function DemoDetail() {
 
   const aiConfigured = openaiStatus?.configured ?? false;
   const hasPrompt = !!(demo.aiGeneratedPrompt || demo.currentWorkingPrompt);
+  const publicUrl = `${window.location.origin}/demo/${demo.slug}`;
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getGetDemoQueryKey(demo.id) });
@@ -108,9 +109,22 @@ export default function DemoDetail() {
     }
   };
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/demo/${demo.slug}`);
-    toast({ title: "Copied to clipboard" });
+  const copyToClipboard = async (value: string, successTitle: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast({ title: successTitle });
+      return true;
+    } catch {
+      toast({
+        title: "Clipboard blocked by this browser",
+        description: value,
+      });
+      return false;
+    }
+  };
+
+  const copyLink = async () => {
+    await copyToClipboard(publicUrl, "Copied to clipboard");
   };
 
   const handleEnrich = () => {
@@ -172,14 +186,37 @@ export default function DemoDetail() {
   };
 
   const handleCopyPrompt = async () => {
-    await navigator.clipboard.writeText(workingPrompt);
-    toast({ title: "Prompt copied" });
+    await copyToClipboard(workingPrompt, "Prompt copied");
     logCopy.mutate({ id: demo.id }, { onSuccess: () => invalidate() });
+  };
+
+  const handleOpenPublicDemo = () => {
+    const open = () => {
+      const openedWindow = window.open(publicUrl, "_blank", "noopener,noreferrer");
+      if (!openedWindow) {
+        window.location.href = publicUrl;
+      }
+    };
+    if (demo.status === "active") {
+      open();
+      return;
+    }
+    updateDemo.mutate(
+      { id: demo.id, data: { status: "active" } },
+      {
+        onSuccess: () => {
+          toast({ title: "Demo published" });
+          invalidate();
+          open();
+        },
+        onError: () => toast({ title: "Failed to publish demo", variant: "destructive" }),
+      },
+    );
   };
 
   const handleExportMd = async () => {
     try {
-      const res = await fetch(getExportDemoMarkdownUrl(demo.id), { method: "POST", credentials: "include" });
+      const res = await authFetch(getExportDemoMarkdownUrl(demo.id), { method: "POST" });
       if (!res.ok) throw new Error(`Export failed (${res.status})`);
       const text = await res.text();
       const blob = new Blob([text], { type: "text/markdown" });
@@ -193,7 +230,7 @@ export default function DemoDetail() {
 
   const handleExportJson = async () => {
     try {
-      const res = await fetch(getExportDemoJsonUrl(demo.id), { method: "POST", credentials: "include" });
+      const res = await authFetch(getExportDemoJsonUrl(demo.id), { method: "POST" });
       if (!res.ok) throw new Error(`Export failed (${res.status})`);
       const json = await res.json();
       const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
@@ -212,8 +249,6 @@ export default function DemoDetail() {
       }
     });
   };
-
-  const publicUrl = `${window.location.origin}/demo/${demo.slug}`;
   const profile = demo.businessProfile as { businessName?: string; industry?: string; summary?: string; services?: string[]; serviceArea?: string; phone?: string; hours?: string; differentiators?: string[]; customerTypes?: string[]; commonQuestions?: string[]; sourceNotes?: { title?: string; url?: string; note?: string }[]; unknowns?: string[] } | null;
   const limitedInfo = !!profile && (
     !profile.sourceNotes || profile.sourceNotes.length === 0 ||
@@ -239,10 +274,16 @@ export default function DemoDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={copyLink} data-testid="btn-copy-link"><Copy className="mr-2 h-4 w-4" /> Copy Link</Button>
-          <a href={publicUrl} target="_blank" rel="noreferrer">
-            <Button variant="default" data-testid="btn-open-demo"><ExternalLink className="mr-2 h-4 w-4" /> Open Public Demo</Button>
-          </a>
+          <Button variant="outline" onClick={() => void copyLink()} data-testid="btn-copy-link"><Copy className="mr-2 h-4 w-4" /> Copy Link</Button>
+          <Button
+            variant="default"
+            onClick={handleOpenPublicDemo}
+            disabled={updateDemo.isPending || !!impersonating}
+            data-testid="btn-open-demo"
+          >
+            <ExternalLink className="mr-2 h-4 w-4" />
+            {demo.status === "active" ? "Open Public Demo" : "Publish & Open Public Demo"}
+          </Button>
         </div>
       </div>
 

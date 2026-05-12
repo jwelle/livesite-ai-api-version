@@ -26,7 +26,7 @@ export default function AdminDemos() {
   });
   const [page, setPage] = useState(1);
   const pageSize = 25;
-  const { refresh } = useAuth();
+  const { refresh, user } = useAuth();
   const { toast } = useToast();
   const impersonate = useStartImpersonation();
 
@@ -40,7 +40,26 @@ export default function AdminDemos() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  const openPublicDemo = (slug: string) => {
+    const url = `${window.location.origin}/demo/${slug}`;
+    try {
+      const openedWindow = window.open(url, "_blank", "noopener,noreferrer");
+      if (!openedWindow) {
+        toast({
+          title: "New tab blocked",
+          description: "Browser blocked a new tab, so the public demo was opened here instead.",
+        });
+        window.location.href = url;
+      }
+    } catch {
+      window.location.href = url;
+    }
+  };
+
   const viewAsOwner = (userId: string, email: string | null) => {
+    if (userId === user?.id) {
+      return;
+    }
     impersonate.mutate({ userId }, {
       onSuccess: async () => {
         await refresh();
@@ -111,7 +130,9 @@ export default function AdminDemos() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data?.items.map((d) => (
+                  {data?.items.map((d) => {
+                    const isOwnDemo = d.userId === user?.id;
+                    return (
                     <TableRow key={d.id} data-testid={`row-admin-demo-${d.id}`}>
                       <TableCell className="font-medium">
                         <Link
@@ -152,16 +173,16 @@ export default function AdminDemos() {
                             variant="ghost"
                             size="sm"
                             onClick={() => viewAsOwner(d.userId, d.ownerEmail ?? null)}
-                            disabled={impersonate.isPending}
+                            disabled={impersonate.isPending || isOwnDemo}
                             data-testid={`btn-view-as-owner-${d.id}`}
-                            title="View as owner"
+                            title={isOwnDemo ? "This is your own demo" : "View as owner"}
                           >
                             <Eye className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => window.open(`/demo/${d.slug}`, "_blank")}
+                            onClick={() => openPublicDemo(d.slug)}
                             data-testid={`btn-open-demo-${d.id}`}
                             title="Open public demo"
                           >
@@ -170,7 +191,7 @@ export default function AdminDemos() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )})}
                 </TableBody>
               </Table>
             </div>

@@ -8,14 +8,14 @@ import { Clock, ShieldX } from "lucide-react";
 import { ReactNode } from "react";
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { isLoading, isAuthenticated, status, login, logout, isAdmin } = useAuth();
-  const [location] = useLocation();
+  const { isLoading, isAuthenticated, status, logout, isAdmin } = useAuth();
+  const [location, setLocation] = useLocation();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      login(location);
+      setLocation(`/login?returnTo=${encodeURIComponent(location)}`);
     }
-  }, [isLoading, isAuthenticated, login, location]);
+  }, [isLoading, isAuthenticated, location, setLocation]);
 
   if (isLoading) {
     return (

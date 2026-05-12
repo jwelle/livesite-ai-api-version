@@ -18,8 +18,8 @@
     "drizzle-orm": "catalog:",
     "express": "^5",
     "express-session": "^1.19.0",
+    "jose": "^6.1.0",
     "openai": "^6.35.0",
-    "openid-client": "^6.8.4",
     "zod": "catalog:",
     "pino": "^9",
     "pino-http": "^10"

@@ -136,22 +136,33 @@ export interface AuthUserEnvelope {
   user: AuthUser | null;
 }
 
-export interface MobileTokenExchangeRequest {
-  /** @minLength 1 */
-  code: string;
-  /** @minLength 1 */
-  code_verifier: string;
-  /** @minLength 1 */
-  redirect_uri: string;
-  /** @minLength 1 */
-  state: string;
-  /** @minLength 1 */
-  nonce?: string;
+export type InviteSummaryTier =
+  (typeof InviteSummaryTier)[keyof typeof InviteSummaryTier];
+
+export const InviteSummaryTier = {
+  free: "free",
+  pro: "pro",
+} as const;
+
+export interface InviteSummary {
+  token: string;
+  tier: InviteSummaryTier;
+  /** @nullable */
+  invitedEmail: string | null;
+  expiresAt: string | null;
+  consumedAt: string | null;
+  revokedAt: string | null;
 }
 
-export interface MobileTokenExchangeSuccess {
-  token: string;
+export interface InviteStatusEnvelope {
+  invite: InviteSummary;
+  status: string;
 }
+
+export type FinalizeInviteEnvelope = AuthUserEnvelope & {
+  success: true;
+  invite: InviteSummary;
+};
 
 export const LogoutSuccessValue = {
   success: true,
@@ -709,21 +720,16 @@ export interface PublicDemo {
 }
 
 /**
- * Opaque session token — `Bearer <sid>`.
+ * Supabase access token — `Bearer <jwt>`.
  */
 export type AuthorizationSessionHeaderParameter = string;
 
-export type BeginBrowserLoginParams = {
-  /**
-   * Relative path to redirect to after login (must start with `/`). Defaults to `/`.
-   */
-  returnTo?: string;
+export type GetInviteStatusParams = {
+  token: string;
 };
 
-export type HandleBrowserLoginCallbackParams = {
-  code?: string;
-  state?: string;
-  iss?: string;
+export type FinalizeInviteBody = {
+  inviteToken: string;
 };
 
 /**

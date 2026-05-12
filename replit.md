@@ -15,7 +15,7 @@ pnpm workspace monorepo. Full-stack SaaS that lets agencies create GHL-powered A
 - **Database**: PostgreSQL + Drizzle ORM
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec → React hooks + Zod schemas)
-- **Auth**: Replit OIDC (via `@workspace/replit-auth-web`)
+- **Auth**: Supabase Auth (email/password + Google OAuth via `@workspace/replit-auth-web`)
 - **Build**: esbuild (API server CJS bundle)
 
 ## Workspace Packages
@@ -40,8 +40,9 @@ pnpm workspace monorepo. Full-stack SaaS that lets agencies create GHL-powered A
 
 ## Database Schema
 
-- `sessions` — Replit OIDC session storage
-- `users` — authenticated users (id, email, firstName, lastName, profileImageUrl)
+- `sessions` — legacy session storage retained during auth migration
+- `users` — authenticated users (app user id, `supabase_auth_user_id`, email, role/tier/status)
+- `admin_impersonations` — app-managed impersonation state for admin view-as-user
 - `agency_settings` — per-user defaults (widget ID, voice phone, calendar link, persona names, branding)
 - `demos` — prospect demo pages (company info, GHL widget ID, voice AI config, analytics counters)
 - `demo_events` — event log (view, call_click, calendar_click, website_open_click)
@@ -50,9 +51,9 @@ pnpm workspace monorepo. Full-stack SaaS that lets agencies create GHL-powered A
 
 ### Auth
 - `GET /auth/user` — current user
-- `GET /login` — begin OIDC flow
-- `GET /login/callback` — OIDC callback
-- `GET /logout` — clear session
+- `GET /auth/invite-status` — preview invite validity and metadata
+- `POST /auth/finalize-invite` — redeem a stored invite after Supabase auth
+- `POST /auth/logout` — clear server-side impersonation state
 
 ### Demos (authenticated)
 - `GET /demos` — list all demos for user (seeds 1 demo if empty)
@@ -77,7 +78,7 @@ pnpm workspace monorepo. Full-stack SaaS that lets agencies create GHL-powered A
 ## Frontend Pages
 
 - `/` — Landing page (marketing, hero, features, how-it-works, CTA)
-- `/login` — Single "Log in" button (calls Replit OIDC — no form)
+- `/login` — Email/password + Google sign-in
 - `/dashboard` — Metrics + demos table with actions
 - `/demos/new` — Create demo form
 - `/demos/:id/edit` — Edit demo form
