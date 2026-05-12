@@ -33,6 +33,10 @@ import {
 
 const router = Router();
 
+router.get("/openai-status", (_req, res) => {
+  res.json({ configured: isOpenAIConfigured() });
+});
+
 // Gate every authenticated route in this router on a fully-approved account.
 // All routes here require the user to be signed in, so this is safe.
 router.use(requireActiveUser);
@@ -414,11 +418,6 @@ router.get("/dashboard/stats", async (req, res) => {
     totalCallClicks,
     totalCalendarClicks,
   });
-});
-
-// ---- OpenAI status ----
-router.get("/openai-status", (_req, res) => {
-  res.json({ configured: isOpenAIConfigured() });
 });
 
 // ---- Enrichment (no save) ----

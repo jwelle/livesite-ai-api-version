@@ -24,14 +24,16 @@ import { getUsageDateString } from "../lib/config";
 const router = Router();
 
 router.use((req, res, next) => {
+  if (!req.path.startsWith("/admin")) {
+    next();
+    return;
+  }
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "UNAUTHORIZED", message: "Unauthorized" });
     return;
   }
-  next();
+  requireAdmin(req, res, next);
 });
-
-router.use(requireAdmin);
 
 function parsePagination(query: Record<string, unknown>) {
   const page = Math.max(1, Number(query.page) || 1);

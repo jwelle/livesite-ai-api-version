@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, Redirect } from "wouter";
 import {
   loginWithGoogle,
@@ -65,12 +65,27 @@ export default function Signup() {
     return <Redirect to={takeReturnTo("/dashboard")} />;
   }
 
-  async function handleEmailSignup() {
+  async function handleEmailSignup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const nextEmail = String(form.get("email") ?? "").trim();
+    const nextPassword = String(form.get("password") ?? "");
+    setEmail(nextEmail);
+    setPassword(nextPassword);
+    if (!nextEmail || !nextPassword) {
+      setError("Email and password are required.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     setSuccessMessage(null);
     try {
-      await signUpWithPassword({ email, password, inviteToken, returnTo });
+      await signUpWithPassword({
+        email: nextEmail,
+        password: nextPassword,
+        inviteToken,
+        returnTo,
+      });
       setSuccessMessage(
         "Account created. If email confirmation is enabled, check your inbox for the verification link before signing in.",
       );
@@ -146,37 +161,43 @@ export default function Signup() {
               </Alert>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="signup-email">Email</Label>
-              <Input
-                id="signup-email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                autoComplete="email"
-                placeholder="you@agency.com"
-              />
-            </div>
+            <form className="space-y-5" onSubmit={handleEmailSignup}>
+              <div className="space-y-2">
+                <Label htmlFor="signup-email">Email</Label>
+                <Input
+                  id="signup-email"
+                  name="email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  onInput={(event) => setEmail(event.currentTarget.value)}
+                  autoComplete="email"
+                  placeholder="you@agency.com"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="signup-password">Password</Label>
-              <Input
-                id="signup-password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="new-password"
-                placeholder="Create a password"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="signup-password">Password</Label>
+                <Input
+                  id="signup-password"
+                  name="password"
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  onInput={(event) => setPassword(event.currentTarget.value)}
+                  autoComplete="new-password"
+                  placeholder="Create a password"
+                />
+              </div>
 
-            <Button
-              onClick={handleEmailSignup}
-              className="w-full h-12 text-base font-medium"
-              disabled={submitting || !email || !password}
-            >
-              Create account with email
-            </Button>
+              <Button
+                type="submit"
+                className="w-full h-12 text-base font-medium"
+                disabled={submitting}
+              >
+                Create account with email
+              </Button>
+            </form>
 
             <Button
               variant="outline"

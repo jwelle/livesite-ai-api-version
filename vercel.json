@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "installCommand": "corepack enable && pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm --filter @workspace/api-server run build && PORT=8081 BASE_PATH=/ pnpm --filter @workspace/live-site-ai run build",
+  "outputDirectory": "artifacts/live-site-ai/dist/public",
+  "functions": {
+    "api/index.mjs": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.mjs"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
