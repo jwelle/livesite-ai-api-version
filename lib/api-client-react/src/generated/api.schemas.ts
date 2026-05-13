@@ -315,19 +315,108 @@ export interface SuccessEnvelope {
   success: boolean;
 }
 
-export type DemoStatus = (typeof DemoStatus)[keyof typeof DemoStatus];
+export interface AutomationHealthStatus {
+  status: string;
+  service: string;
+  version: string;
+}
 
-export const DemoStatus = {
-  active: "active",
-  inactive: "inactive",
-  draft: "draft",
-  enriched: "enriched",
-  edited: "edited",
-  approved: "approved",
-  copied: "copied",
-  pushed_to_ghl: "pushed_to_ghl",
-  failed: "failed",
-} as const;
+export interface ApiKeySummary {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  last4: string;
+  maskedKey: string;
+  lastUsedAt?: string | null;
+  revokedAt?: string | null;
+  createdAt: string;
+}
+
+export interface ApiKeysList {
+  items: ApiKeySummary[];
+}
+
+export interface ApiKeyResponse {
+  apiKey: ApiKeySummary;
+}
+
+export interface CreateApiKeyBody {
+  name?: string;
+}
+
+export type CreateApiKeyResponse = ApiKeyResponse & {
+  plaintextKey: string;
+};
+
+export interface DemoRequest {
+  id: string;
+  source: string;
+  userId: string;
+  /** @nullable */
+  ghlConnectionId?: string | null;
+  locationId: string;
+  /** @nullable */
+  contactId?: string | null;
+  /** @nullable */
+  opportunityId?: string | null;
+  companyName: string;
+  websiteUrl: string;
+  /** @nullable */
+  contactName?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  industry?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  rawPayload?: unknown;
+  status: string;
+  /** @nullable */
+  demoId?: string | null;
+  /** @nullable */
+  publicUrl?: string | null;
+  /** @nullable */
+  errorMessage?: string | null;
+  retryCount: number;
+  lastAttemptAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DemoRequestsList {
+  items: DemoRequest[];
+}
+
+export type CreateDemoRequestBodyOptions = {
+  enrich?: boolean;
+};
+
+export interface CreateDemoRequestBody {
+  companyName: string;
+  websiteUrl: string;
+  /** @nullable */
+  locationId?: string | null;
+  /** @nullable */
+  contactId?: string | null;
+  /** @nullable */
+  opportunityId?: string | null;
+  /** @nullable */
+  contactName?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  industry?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  rawPayload?: unknown;
+  /** @nullable */
+  source?: string | null;
+  options?: CreateDemoRequestBodyOptions;
+}
 
 export type BusinessProfileSourceNotesItem = {
   title?: string;
@@ -382,9 +471,31 @@ export interface VoiceAgentPackage {
   complianceBoundaries?: string[];
 }
 
+export type DemoStatus = (typeof DemoStatus)[keyof typeof DemoStatus];
+
+export const DemoStatus = {
+  active: "active",
+  inactive: "inactive",
+  draft: "draft",
+  enriched: "enriched",
+  edited: "edited",
+  approved: "approved",
+  copied: "copied",
+  pushed_to_ghl: "pushed_to_ghl",
+  failed: "failed",
+} as const;
+
 export interface Demo {
   id: string;
   userId: string;
+  /** @nullable */
+  createdVia?: string | null;
+  /** @nullable */
+  externalSource?: string | null;
+  /** @nullable */
+  apiKeyId?: string | null;
+  /** @nullable */
+  externalSourceId?: string | null;
   companyName: string;
   slug: string;
   websiteUrl: string;
@@ -440,6 +551,147 @@ export interface Demo {
   calendarClickCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CreateDemoRequestResponse {
+  demoRequest: DemoRequest;
+  demo: Demo;
+  publicUrl: string;
+}
+
+export interface GhlConnectionSummary {
+  id: string;
+  userId: string;
+  locationId: string;
+  /** @nullable */
+  companyId?: string | null;
+  name: string;
+  authType: string;
+  /** @nullable */
+  tokenLast4?: string | null;
+  /** @nullable */
+  tokenMasked?: string | null;
+  tokenExpiresAt?: string | null;
+  scopes: string[];
+  defaultWritebackMode: string;
+  /** @nullable */
+  contactDemoUrlFieldId?: string | null;
+  /** @nullable */
+  opportunityDemoUrlFieldId?: string | null;
+  addNote: boolean;
+  applyTag: boolean;
+  /** @nullable */
+  successTagId?: string | null;
+  /** @nullable */
+  successTagName?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GhlConnectionsList {
+  items: GhlConnectionSummary[];
+}
+
+export interface GhlConnectionResponse {
+  connection: GhlConnectionSummary;
+}
+
+export type DeleteGhlConnectionResponse = SuccessEnvelope & {
+  connection: GhlConnectionSummary;
+};
+
+export type CreateGhlConnectionBodyAuthType =
+  (typeof CreateGhlConnectionBodyAuthType)[keyof typeof CreateGhlConnectionBodyAuthType];
+
+export const CreateGhlConnectionBodyAuthType = {
+  private_integration_token: "private_integration_token",
+} as const;
+
+export interface CreateGhlConnectionBody {
+  name: string;
+  locationId: string;
+  /** @nullable */
+  companyId?: string | null;
+  privateIntegrationToken: string;
+  authType?: CreateGhlConnectionBodyAuthType;
+  scopes?: string[];
+  /** @nullable */
+  defaultWritebackMode?: string | null;
+  /** @nullable */
+  contactDemoUrlFieldId?: string | null;
+  /** @nullable */
+  opportunityDemoUrlFieldId?: string | null;
+  addNote?: boolean;
+  applyTag?: boolean;
+  /** @nullable */
+  successTagId?: string | null;
+  /** @nullable */
+  successTagName?: string | null;
+}
+
+export type GhlWritebackAttemptStatus =
+  (typeof GhlWritebackAttemptStatus)[keyof typeof GhlWritebackAttemptStatus];
+
+export const GhlWritebackAttemptStatus = {
+  pending: "pending",
+  success: "success",
+  failed: "failed",
+} as const;
+
+export interface GhlWritebackAttempt {
+  id: string;
+  demoRequestId: string;
+  /** @nullable */
+  demoId?: string | null;
+  /** @nullable */
+  ghlConnectionId?: string | null;
+  targetType: string;
+  /** @nullable */
+  targetId?: string | null;
+  /** @nullable */
+  fieldId?: string | null;
+  status: GhlWritebackAttemptStatus;
+  requestMetadata?: unknown;
+  responseMetadata?: unknown;
+  /** @nullable */
+  errorMessage?: string | null;
+  attemptedAt: string;
+  createdAt: string;
+}
+
+export interface GhlWritebackAttemptsList {
+  items: GhlWritebackAttempt[];
+}
+
+export interface GhlWritebackResponse {
+  writeback: GhlWritebackAttempt;
+}
+
+export type CreateWritebackBodyStatus =
+  (typeof CreateWritebackBodyStatus)[keyof typeof CreateWritebackBodyStatus];
+
+export const CreateWritebackBodyStatus = {
+  pending: "pending",
+  success: "success",
+  failed: "failed",
+} as const;
+
+export interface CreateWritebackBody {
+  demoRequestId: string;
+  /** @nullable */
+  demoId?: string | null;
+  /** @nullable */
+  ghlConnectionId?: string | null;
+  targetType: string;
+  /** @nullable */
+  targetId?: string | null;
+  /** @nullable */
+  fieldId?: string | null;
+  status?: CreateWritebackBodyStatus;
+  requestMetadata?: unknown;
+  responseMetadata?: unknown;
+  /** @nullable */
+  errorMessage?: string | null;
 }
 
 export type CreateDemoBodyStatus =
@@ -756,6 +1008,10 @@ current AI prompt and working prompt untouched. Defaults to "replace".
 
 export type ExportDemoJson200 = { [key: string]: unknown };
 
+export type ListWritebacksParams = {
+  demoRequestId?: string;
+};
+
 export type GetAdminUsersParams = {
   page?: number;
   pageSize?: number;
@@ -771,6 +1027,10 @@ export const GetAdminUsersStatus = {
   active: "active",
   suspended: "suspended",
 } as const;
+
+export type AdminListUserWritebacksParams = {
+  demoRequestId?: string;
+};
 
 export type ListInvitesParams = {
   page?: number;

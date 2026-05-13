@@ -4,7 +4,7 @@ Last updated: May 12, 2026
 
 ## Current State
 
-Livesite AI is on branch `codex/supabase-auth-migration-stabilization` and is pointed at the Supabase project `Live Site AI` (`qtxgrkhwspnmzncpvghd`).
+Livesite AI is on branch `codex/automation-api-v1-routes` and is pointed at the Supabase project `Live Site AI` (`qtxgrkhwspnmzncpvghd`).
 
 - API server target: `http://localhost:8080`
 - Frontend target: `http://localhost:8081`
@@ -15,9 +15,10 @@ Livesite AI is on branch `codex/supabase-auth-migration-stabilization` and is po
 - Signup/autofill handling is fixed locally.
 - API admin route gating is scoped so non-admin API routes are no longer intercepted.
 - External API MVP routes exist under `/api/v1/*` for API-key creation and demo-request creation.
+- Automation API v1 route coverage now includes health, GHL connection management, and writeback tracking.
 - Vercel configuration has been added for a frontend build plus Express API serverless handler.
 - Public frontend demo route `/demo/:slug` is confirmed working locally in Chrome.
-- Remaining public-demo-related fixes have been narrowed to dashboard/admin browser UX, not auth or public routing.
+- API-created demos are stored in the main `demos` table, with `demo_requests` kept as audit/intake history.
 
 ## Active Project Plugins
 
@@ -58,31 +59,57 @@ Note: Codex app tools are available in-session even though the local `codex mcp 
   - `Open Public Demo` now uses the same resilient absolute URL open helper.
   - `View as owner` is disabled for self-owned demos so the UI no longer calls impersonation for the current admin user.
 - Frontend typecheck passed after the dashboard/admin UX changes.
+- Automation API v1 alignment was expanded:
+  - added public `GET /api/v1/health`
+  - kept API keys and demo requests under `/api/v1/*`
+  - added authenticated GHL connection create/list/delete routes
+  - added authenticated writeback tracking create/list routes
+  - API-created demos now stamp source-tracking fields on `demos` while `demo_requests` remains an audit/intake record
+- `.env.example` now documents `AUTOMATION_TOKEN_ENCRYPTION_KEY` for encrypted GHL token storage.
+- Local automation API setup was completed and smoke-tested:
+  - `GET /api/v1/health` returned `200`
+  - authenticated API key create/list/revoke passed
+  - missing and revoked API keys correctly returned `401` on `POST /api/v1/demo-requests`
+  - authenticated GHL connection create/list/delete passed without exposing the private token
+  - API-key demo creation produced a normal `demos` row plus a linked `demo_requests` row
+  - public demo URL and `/api/public/demo/:slug` both returned `200`
+  - authenticated writeback create/list passed
+  - direct DB verification confirmed `createdVia`, `externalSource`, `apiKeyId`, and `externalSourceId` on the created demo
+- Admin + user automation setup UI was added:
+  - `/automation` for self-service API key and GHL connection management
+  - `/admin/users/:userId/automation` for admin-managed tenant setup without impersonation
+  - admin automation routes were added for target-user API key and GHL connection management
+  - admin automation smoke test passed, including demo creation through an admin-managed API key for the target user
+- Local `.env.local` now includes `AUTOMATION_TOKEN_ENCRYPTION_KEY` so GHL connection creation works without a temporary runtime override.
 
 ## Immediate Next Steps
 
-1. Browser-test full user signup and login with a new real account.
-2. Confirm Supabase Auth redirect URLs include local and Vercel preview URLs.
-3. Browser-test remaining authenticated dashboard flow:
+1. Implement real outbound GHL writeback execution as a separate slice.
+2. Browser-test the new `/automation` and `/admin/users/:userId/automation` pages interactively.
+3. Confirm Supabase Auth redirect URLs include local and Vercel preview URLs.
+4. Browser-test remaining authenticated dashboard flow:
    - create demo
    - edit settings/demo
    - run AI enrichment
    - publish as active
    - open `/demo/:slug`
-4. Configure Vercel env vars and deploy a preview.
-5. Add the deployed preview URL to Supabase Auth redirect URLs.
-6. Add GHL connection/writeback endpoints after the page-generation loop is verified live.
+5. Configure Vercel env vars and deploy a preview.
+6. Add the deployed preview URL to Supabase Auth redirect URLs.
+7. Add `AUTOMATION_TOKEN_ENCRYPTION_KEY` to preview/production environments.
+8. Define GHL field-mapping and retry behavior for real writeback execution.
 
 ## Known Risks And Blockers
 
 - Local dashboard testing depends on a real Supabase Auth user/session.
 - If Supabase uses legacy symmetric JWTs, `SUPABASE_JWT_SECRET` may still be needed; current server code should work with JWKS first.
-- External `/api/v1/demo-requests` currently supports page generation and optional enrichment, but not GHL writeback.
-- GHL writeback has not yet been tested with a real private integration token and contact id.
+- External `/api/v1/demo-requests` currently supports page generation and optional enrichment, but not real GHL writeback execution.
+- GHL writeback route coverage is tracking-only; it does not yet call the GoHighLevel API.
 - OpenAI enrichment requires `OPENAI_API_KEY` or `AI_INTEGRATIONS_OPENAI_API_KEY`.
 - Some Vite/esbuild/codegen commands can fail inside Codex's Windows sandbox with path access errors; run them in normal PowerShell or approve unrestricted execution when needed.
 - Vercel preview still needs environment variables set and Supabase Auth redirect URLs updated.
 - Clipboard behavior in the Codex in-app browser can differ from normal Chrome; the UI now handles that case with toast-based fallbacks instead of inline copy fields.
+- Real GHL outbound writeback is still out of scope for this branch; the writeback routes only record attempts and metadata.
+- GHL connection creation requires `AUTOMATION_TOKEN_ENCRYPTION_KEY` in every target environment or token storage will fail safely.
 
 ## Useful Commands
 

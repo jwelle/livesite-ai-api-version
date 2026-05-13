@@ -16,6 +16,8 @@ tags:
     description: Demo management
   - name: settings
     description: Agency settings
+  - name: automation
+    description: API key and external automation endpoints
   - name: public
     description: Public demo pages (unauthenticated)
   - name: admin
@@ -535,6 +537,182 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  /v1/health:
+    get:
+      tags: [automation]
+      operationId: getAutomationHealth
+      summary: Automation API health
+      responses:
+        '200':
+          description: Automation API status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AutomationHealthStatus' }
+  /v1/api-keys:
+    get:
+      tags: [automation]
+      operationId: listApiKeys
+      summary: List API keys for the authenticated user
+      responses:
+        '200':
+          description: API keys
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiKeysList' }
+        '401': { description: Unauthorized }
+    post:
+      tags: [automation]
+      operationId: createApiKey
+      summary: Create an API key for the authenticated user
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateApiKeyBody' }
+      responses:
+        '201':
+          description: API key created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateApiKeyResponse' }
+        '400': { description: Validation error }
+        '401': { description: Unauthorized }
+  /v1/api-keys/{id}/revoke:
+    post:
+      tags: [automation]
+      operationId: revokeApiKey
+      summary: Revoke an API key for the authenticated user
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: API key revoked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiKeyResponse' }
+        '401': { description: Unauthorized }
+        '404': { description: Not found }
+  /v1/demo-requests:
+    get:
+      tags: [automation]
+      operationId: listDemoRequests
+      summary: List automation demo requests for the authenticated user
+      responses:
+        '200':
+          description: Demo requests
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DemoRequestsList' }
+        '401': { description: Unauthorized }
+    post:
+      tags: [automation]
+      operationId: createDemoRequest
+      summary: Create a demo request using an API key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateDemoRequestBody' }
+      responses:
+        '201':
+          description: Demo request created and demo provisioned
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateDemoRequestResponse' }
+        '400': { description: Validation error }
+        '401': { description: Missing or invalid API key }
+        '500': { description: Demo request processing failed }
+  /v1/demo-requests/{id}:
+    get:
+      tags: [automation]
+      operationId: getDemoRequest
+      summary: Get one automation demo request for the authenticated user
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Demo request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DemoRequest' }
+        '401': { description: Unauthorized }
+        '404': { description: Not found }
+  /v1/ghl-connections:
+    get:
+      tags: [automation]
+      operationId: listGhlConnections
+      summary: List GHL connections for the authenticated user
+      responses:
+        '200':
+          description: GHL connections
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GhlConnectionsList' }
+        '401': { description: Unauthorized }
+    post:
+      tags: [automation]
+      operationId: createGhlConnection
+      summary: Create a GHL connection for the authenticated user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateGhlConnectionBody' }
+      responses:
+        '201':
+          description: GHL connection created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GhlConnectionResponse' }
+        '400': { description: Validation error }
+        '401': { description: Unauthorized }
+  /v1/ghl-connections/{id}:
+    delete:
+      tags: [automation]
+      operationId: deleteGhlConnection
+      summary: Delete a GHL connection for the authenticated user
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: GHL connection deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeleteGhlConnectionResponse' }
+        '401': { description: Unauthorized }
+        '404': { description: Not found }
+  /v1/writebacks:
+    get:
+      tags: [automation]
+      operationId: listWritebacks
+      summary: List writeback attempts for the authenticated user
+      parameters:
+        - { name: demoRequestId, in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: Writeback attempts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GhlWritebackAttemptsList' }
+        '401': { description: Unauthorized }
+    post:
+      tags: [automation]
+      operationId: createWriteback
+      summary: Create a writeback attempt record for the authenticated user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateWritebackBody' }
+      responses:
+        '201':
+          description: Writeback attempt created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GhlWritebackResponse' }
+        '400': { description: Validation error }
+        '401': { description: Unauthorized }
+        '404': { description: Referenced resource not found }
   /admin/users:
     get:
       tags: [admin]
@@ -630,6 +808,117 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SuccessEnvelope' }
+  /admin/users/{userId}/api-keys:
+    get:
+      tags: [admin]
+      operationId: adminListUserApiKeys
+      summary: List API keys for a target user (admin)
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: API keys for the target user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiKeysList' }
+        '404': { description: User not found }
+    post:
+      tags: [admin]
+      operationId: adminCreateUserApiKey
+      summary: Create an API key for a target user (admin)
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateApiKeyBody' }
+      responses:
+        '201':
+          description: API key created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateApiKeyResponse' }
+        '400': { description: Validation error }
+        '404': { description: User not found }
+  /admin/users/{userId}/api-keys/{id}/revoke:
+    post:
+      tags: [admin]
+      operationId: adminRevokeUserApiKey
+      summary: Revoke an API key for a target user (admin)
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string } }
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: API key revoked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiKeyResponse' }
+        '404': { description: User or API key not found }
+  /admin/users/{userId}/ghl-connections:
+    get:
+      tags: [admin]
+      operationId: adminListUserGhlConnections
+      summary: List GHL connections for a target user (admin)
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: GHL connections for the target user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GhlConnectionsList' }
+        '404': { description: User not found }
+    post:
+      tags: [admin]
+      operationId: adminCreateUserGhlConnection
+      summary: Create a GHL connection for a target user (admin)
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateGhlConnectionBody' }
+      responses:
+        '201':
+          description: GHL connection created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GhlConnectionResponse' }
+        '400': { description: Validation error }
+        '404': { description: User not found }
+  /admin/users/{userId}/ghl-connections/{id}:
+    delete:
+      tags: [admin]
+      operationId: adminDeleteUserGhlConnection
+      summary: Delete a GHL connection for a target user (admin)
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string } }
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: GHL connection deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeleteGhlConnectionResponse' }
+        '404': { description: User or connection not found }
+  /admin/users/{userId}/writebacks:
+    get:
+      tags: [admin]
+      operationId: adminListUserWritebacks
+      summary: List writeback attempts for a target user (admin)
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string } }
+        - { name: demoRequestId, in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: Writeback attempts for the target user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GhlWritebackAttemptsList' }
+        '404': { description: User not found }
   /admin/invites:
     get:
       tags: [admin]
@@ -1149,6 +1438,250 @@ components:
         success:
           type: boolean
 
+    AutomationHealthStatus:
+      type: object
+      required: [status, service, version]
+      properties:
+        status: { type: string }
+        service: { type: string }
+        version: { type: string }
+
+    ApiKeySummary:
+      type: object
+      required: [id, name, keyPrefix, last4, maskedKey, createdAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        keyPrefix: { type: string }
+        last4: { type: string }
+        maskedKey: { type: string }
+        lastUsedAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        revokedAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        createdAt: { type: string, format: date-time }
+
+    ApiKeysList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ApiKeySummary' }
+
+    ApiKeyResponse:
+      type: object
+      required: [apiKey]
+      properties:
+        apiKey: { $ref: '#/components/schemas/ApiKeySummary' }
+
+    CreateApiKeyBody:
+      type: object
+      properties:
+        name: { type: string }
+
+    CreateApiKeyResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiKeyResponse'
+        - type: object
+          required: [plaintextKey]
+          properties:
+            plaintextKey: { type: string }
+
+    DemoRequest:
+      type: object
+      required: [id, source, userId, locationId, companyName, websiteUrl, status, retryCount, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        source: { type: string }
+        userId: { type: string }
+        ghlConnectionId: { type: [string, 'null'] }
+        locationId: { type: string }
+        contactId: { type: [string, 'null'] }
+        opportunityId: { type: [string, 'null'] }
+        companyName: { type: string }
+        websiteUrl: { type: string }
+        contactName: { type: [string, 'null'] }
+        email: { type: [string, 'null'] }
+        phone: { type: [string, 'null'] }
+        industry: { type: [string, 'null'] }
+        notes: { type: [string, 'null'] }
+        rawPayload: {}
+        status: { type: string }
+        demoId: { type: [string, 'null'] }
+        publicUrl: { type: [string, 'null'] }
+        errorMessage: { type: [string, 'null'] }
+        retryCount: { type: integer }
+        lastAttemptAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    DemoRequestsList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DemoRequest' }
+
+    CreateDemoRequestBody:
+      type: object
+      required: [companyName, websiteUrl]
+      properties:
+        companyName: { type: string }
+        websiteUrl: { type: string }
+        locationId: { type: [string, 'null'] }
+        contactId: { type: [string, 'null'] }
+        opportunityId: { type: [string, 'null'] }
+        contactName: { type: [string, 'null'] }
+        email: { type: [string, 'null'] }
+        phone: { type: [string, 'null'] }
+        industry: { type: [string, 'null'] }
+        notes: { type: [string, 'null'] }
+        rawPayload: {}
+        source: { type: [string, 'null'] }
+        options:
+          type: object
+          properties:
+            enrich: { type: boolean }
+
+    CreateDemoRequestResponse:
+      type: object
+      required: [demoRequest, demo, publicUrl]
+      properties:
+        demoRequest: { $ref: '#/components/schemas/DemoRequest' }
+        demo: { $ref: '#/components/schemas/Demo' }
+        publicUrl: { type: string }
+
+    GhlConnectionSummary:
+      type: object
+      required: [id, userId, locationId, name, authType, scopes, defaultWritebackMode, addNote, applyTag, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        locationId: { type: string }
+        companyId: { type: [string, 'null'] }
+        name: { type: string }
+        authType: { type: string }
+        tokenLast4: { type: [string, 'null'] }
+        tokenMasked: { type: [string, 'null'] }
+        tokenExpiresAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        scopes:
+          type: array
+          items: { type: string }
+        defaultWritebackMode: { type: string }
+        contactDemoUrlFieldId: { type: [string, 'null'] }
+        opportunityDemoUrlFieldId: { type: [string, 'null'] }
+        addNote: { type: boolean }
+        applyTag: { type: boolean }
+        successTagId: { type: [string, 'null'] }
+        successTagName: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    GhlConnectionsList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/GhlConnectionSummary' }
+
+    GhlConnectionResponse:
+      type: object
+      required: [connection]
+      properties:
+        connection: { $ref: '#/components/schemas/GhlConnectionSummary' }
+
+    DeleteGhlConnectionResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          required: [connection]
+          properties:
+            connection: { $ref: '#/components/schemas/GhlConnectionSummary' }
+
+    CreateGhlConnectionBody:
+      type: object
+      required: [name, locationId, privateIntegrationToken]
+      properties:
+        name: { type: string }
+        locationId: { type: string }
+        companyId: { type: [string, 'null'] }
+        privateIntegrationToken: { type: string }
+        authType:
+          type: string
+          enum: [private_integration_token]
+        scopes:
+          type: array
+          items: { type: string }
+        defaultWritebackMode: { type: [string, 'null'] }
+        contactDemoUrlFieldId: { type: [string, 'null'] }
+        opportunityDemoUrlFieldId: { type: [string, 'null'] }
+        addNote: { type: boolean }
+        applyTag: { type: boolean }
+        successTagId: { type: [string, 'null'] }
+        successTagName: { type: [string, 'null'] }
+
+    GhlWritebackAttempt:
+      type: object
+      required: [id, demoRequestId, targetType, status, attemptedAt, createdAt]
+      properties:
+        id: { type: string }
+        demoRequestId: { type: string }
+        demoId: { type: [string, 'null'] }
+        ghlConnectionId: { type: [string, 'null'] }
+        targetType: { type: string }
+        targetId: { type: [string, 'null'] }
+        fieldId: { type: [string, 'null'] }
+        status: { type: string, enum: [pending, success, failed] }
+        requestMetadata: {}
+        responseMetadata: {}
+        errorMessage: { type: [string, 'null'] }
+        attemptedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    GhlWritebackAttemptsList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/GhlWritebackAttempt' }
+
+    GhlWritebackResponse:
+      type: object
+      required: [writeback]
+      properties:
+        writeback: { $ref: '#/components/schemas/GhlWritebackAttempt' }
+
+    CreateWritebackBody:
+      type: object
+      required: [demoRequestId, targetType]
+      properties:
+        demoRequestId: { type: string }
+        demoId: { type: [string, 'null'] }
+        ghlConnectionId: { type: [string, 'null'] }
+        targetType: { type: string }
+        targetId: { type: [string, 'null'] }
+        fieldId: { type: [string, 'null'] }
+        status:
+          type: string
+          enum: [pending, success, failed]
+        requestMetadata: {}
+        responseMetadata: {}
+        errorMessage: { type: [string, 'null'] }
+
     Demo:
       type: object
       required:
@@ -1168,6 +1701,14 @@ components:
           type: string
         userId:
           type: string
+        createdVia:
+          type: [string, 'null']
+        externalSource:
+          type: [string, 'null']
+        apiKeyId:
+          type: [string, 'null']
+        externalSourceId:
+          type: [string, 'null']
         companyName:
           type: string
         slug:

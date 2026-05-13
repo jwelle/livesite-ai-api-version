@@ -154,6 +154,10 @@ export const LogoutMobileSessionResponse = zod.object({
 export const GetDemosResponseItem = zod.object({
   id: zod.string(),
   userId: zod.string(),
+  createdVia: zod.string().nullish(),
+  externalSource: zod.string().nullish(),
+  apiKeyId: zod.string().nullish(),
+  externalSourceId: zod.string().nullish(),
   companyName: zod.string(),
   slug: zod.string(),
   websiteUrl: zod.string(),
@@ -301,6 +305,10 @@ export const GetDemoParams = zod.object({
 export const GetDemoResponse = zod.object({
   id: zod.string(),
   userId: zod.string(),
+  createdVia: zod.string().nullish(),
+  externalSource: zod.string().nullish(),
+  apiKeyId: zod.string().nullish(),
+  externalSourceId: zod.string().nullish(),
   companyName: zod.string(),
   slug: zod.string(),
   websiteUrl: zod.string(),
@@ -498,6 +506,10 @@ export const UpdateDemoBody = zod.object({
 export const UpdateDemoResponse = zod.object({
   id: zod.string(),
   userId: zod.string(),
+  createdVia: zod.string().nullish(),
+  externalSource: zod.string().nullish(),
+  apiKeyId: zod.string().nullish(),
+  externalSourceId: zod.string().nullish(),
   companyName: zod.string(),
   slug: zod.string(),
   websiteUrl: zod.string(),
@@ -614,6 +626,10 @@ export const RegenerateDemoSlugParams = zod.object({
 export const RegenerateDemoSlugResponse = zod.object({
   id: zod.string(),
   userId: zod.string(),
+  createdVia: zod.string().nullish(),
+  externalSource: zod.string().nullish(),
+  apiKeyId: zod.string().nullish(),
+  externalSourceId: zod.string().nullish(),
   companyName: zod.string(),
   slug: zod.string(),
   websiteUrl: zod.string(),
@@ -781,6 +797,10 @@ export const EnrichDemoParams = zod.object({
 export const EnrichDemoResponse = zod.object({
   id: zod.string(),
   userId: zod.string(),
+  createdVia: zod.string().nullish(),
+  externalSource: zod.string().nullish(),
+  apiKeyId: zod.string().nullish(),
+  externalSourceId: zod.string().nullish(),
   companyName: zod.string(),
   slug: zod.string(),
   websiteUrl: zod.string(),
@@ -895,6 +915,10 @@ export const RegenerateDemoPromptBody = zod.object({
 export const RegenerateDemoPromptResponse = zod.object({
   id: zod.string(),
   userId: zod.string(),
+  createdVia: zod.string().nullish(),
+  externalSource: zod.string().nullish(),
+  apiKeyId: zod.string().nullish(),
+  externalSourceId: zod.string().nullish(),
   companyName: zod.string(),
   slug: zod.string(),
   websiteUrl: zod.string(),
@@ -1000,6 +1024,10 @@ export const LogDemoCopyEventParams = zod.object({
 export const LogDemoCopyEventResponse = zod.object({
   id: zod.string(),
   userId: zod.string(),
+  createdVia: zod.string().nullish(),
+  externalSource: zod.string().nullish(),
+  apiKeyId: zod.string().nullish(),
+  externalSourceId: zod.string().nullish(),
   companyName: zod.string(),
   slug: zod.string(),
   websiteUrl: zod.string(),
@@ -1238,6 +1266,277 @@ export const GetMyUsageResponse = zod.object({
 });
 
 /**
+ * @summary Automation API health
+ */
+export const GetAutomationHealthResponse = zod.object({
+  status: zod.string(),
+  service: zod.string(),
+  version: zod.string(),
+});
+
+/**
+ * @summary List API keys for the authenticated user
+ */
+export const ListApiKeysResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      name: zod.string(),
+      keyPrefix: zod.string(),
+      last4: zod.string(),
+      maskedKey: zod.string(),
+      lastUsedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+      revokedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Create an API key for the authenticated user
+ */
+export const CreateApiKeyBody = zod.object({
+  name: zod.string().optional(),
+});
+
+/**
+ * @summary Revoke an API key for the authenticated user
+ */
+export const RevokeApiKeyParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const RevokeApiKeyResponse = zod.object({
+  apiKey: zod.object({
+    id: zod.string(),
+    name: zod.string(),
+    keyPrefix: zod.string(),
+    last4: zod.string(),
+    maskedKey: zod.string(),
+    lastUsedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+    revokedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+    createdAt: zod.coerce.date(),
+  }),
+});
+
+/**
+ * @summary List automation demo requests for the authenticated user
+ */
+export const ListDemoRequestsResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      source: zod.string(),
+      userId: zod.string(),
+      ghlConnectionId: zod.string().nullish(),
+      locationId: zod.string(),
+      contactId: zod.string().nullish(),
+      opportunityId: zod.string().nullish(),
+      companyName: zod.string(),
+      websiteUrl: zod.string(),
+      contactName: zod.string().nullish(),
+      email: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      industry: zod.string().nullish(),
+      notes: zod.string().nullish(),
+      rawPayload: zod.unknown().optional(),
+      status: zod.string(),
+      demoId: zod.string().nullish(),
+      publicUrl: zod.string().nullish(),
+      errorMessage: zod.string().nullish(),
+      retryCount: zod.number(),
+      lastAttemptAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Create a demo request using an API key
+ */
+export const CreateDemoRequestBody = zod.object({
+  companyName: zod.string(),
+  websiteUrl: zod.string(),
+  locationId: zod.string().nullish(),
+  contactId: zod.string().nullish(),
+  opportunityId: zod.string().nullish(),
+  contactName: zod.string().nullish(),
+  email: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  industry: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  rawPayload: zod.unknown().optional(),
+  source: zod.string().nullish(),
+  options: zod
+    .object({
+      enrich: zod.boolean().optional(),
+    })
+    .optional(),
+});
+
+/**
+ * @summary Get one automation demo request for the authenticated user
+ */
+export const GetDemoRequestParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetDemoRequestResponse = zod.object({
+  id: zod.string(),
+  source: zod.string(),
+  userId: zod.string(),
+  ghlConnectionId: zod.string().nullish(),
+  locationId: zod.string(),
+  contactId: zod.string().nullish(),
+  opportunityId: zod.string().nullish(),
+  companyName: zod.string(),
+  websiteUrl: zod.string(),
+  contactName: zod.string().nullish(),
+  email: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  industry: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  rawPayload: zod.unknown().optional(),
+  status: zod.string(),
+  demoId: zod.string().nullish(),
+  publicUrl: zod.string().nullish(),
+  errorMessage: zod.string().nullish(),
+  retryCount: zod.number(),
+  lastAttemptAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary List GHL connections for the authenticated user
+ */
+export const ListGhlConnectionsResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      userId: zod.string(),
+      locationId: zod.string(),
+      companyId: zod.string().nullish(),
+      name: zod.string(),
+      authType: zod.string(),
+      tokenLast4: zod.string().nullish(),
+      tokenMasked: zod.string().nullish(),
+      tokenExpiresAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+      scopes: zod.array(zod.string()),
+      defaultWritebackMode: zod.string(),
+      contactDemoUrlFieldId: zod.string().nullish(),
+      opportunityDemoUrlFieldId: zod.string().nullish(),
+      addNote: zod.boolean(),
+      applyTag: zod.boolean(),
+      successTagId: zod.string().nullish(),
+      successTagName: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Create a GHL connection for the authenticated user
+ */
+export const CreateGhlConnectionBody = zod.object({
+  name: zod.string(),
+  locationId: zod.string(),
+  companyId: zod.string().nullish(),
+  privateIntegrationToken: zod.string(),
+  authType: zod.enum(["private_integration_token"]).optional(),
+  scopes: zod.array(zod.string()).optional(),
+  defaultWritebackMode: zod.string().nullish(),
+  contactDemoUrlFieldId: zod.string().nullish(),
+  opportunityDemoUrlFieldId: zod.string().nullish(),
+  addNote: zod.boolean().optional(),
+  applyTag: zod.boolean().optional(),
+  successTagId: zod.string().nullish(),
+  successTagName: zod.string().nullish(),
+});
+
+/**
+ * @summary Delete a GHL connection for the authenticated user
+ */
+export const DeleteGhlConnectionParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const DeleteGhlConnectionResponse = zod
+  .object({
+    success: zod.boolean(),
+  })
+  .and(
+    zod.object({
+      connection: zod.object({
+        id: zod.string(),
+        userId: zod.string(),
+        locationId: zod.string(),
+        companyId: zod.string().nullish(),
+        name: zod.string(),
+        authType: zod.string(),
+        tokenLast4: zod.string().nullish(),
+        tokenMasked: zod.string().nullish(),
+        tokenExpiresAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+        scopes: zod.array(zod.string()),
+        defaultWritebackMode: zod.string(),
+        contactDemoUrlFieldId: zod.string().nullish(),
+        opportunityDemoUrlFieldId: zod.string().nullish(),
+        addNote: zod.boolean(),
+        applyTag: zod.boolean(),
+        successTagId: zod.string().nullish(),
+        successTagName: zod.string().nullish(),
+        createdAt: zod.coerce.date(),
+        updatedAt: zod.coerce.date(),
+      }),
+    }),
+  );
+
+/**
+ * @summary List writeback attempts for the authenticated user
+ */
+export const ListWritebacksQueryParams = zod.object({
+  demoRequestId: zod.coerce.string().optional(),
+});
+
+export const ListWritebacksResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      demoRequestId: zod.string(),
+      demoId: zod.string().nullish(),
+      ghlConnectionId: zod.string().nullish(),
+      targetType: zod.string(),
+      targetId: zod.string().nullish(),
+      fieldId: zod.string().nullish(),
+      status: zod.enum(["pending", "success", "failed"]),
+      requestMetadata: zod.unknown().optional(),
+      responseMetadata: zod.unknown().optional(),
+      errorMessage: zod.string().nullish(),
+      attemptedAt: zod.coerce.date(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Create a writeback attempt record for the authenticated user
+ */
+export const CreateWritebackBody = zod.object({
+  demoRequestId: zod.string(),
+  demoId: zod.string().nullish(),
+  ghlConnectionId: zod.string().nullish(),
+  targetType: zod.string(),
+  targetId: zod.string().nullish(),
+  fieldId: zod.string().nullish(),
+  status: zod.enum(["pending", "success", "failed"]).optional(),
+  requestMetadata: zod.unknown().optional(),
+  responseMetadata: zod.unknown().optional(),
+  errorMessage: zod.string().nullish(),
+});
+
+/**
  * @summary List all users (admin)
  */
 export const GetAdminUsersQueryParams = zod.object({
@@ -1340,6 +1639,185 @@ export const SetUserRoleBody = zod.object({
 
 export const SetUserRoleResponse = zod.object({
   success: zod.boolean(),
+});
+
+/**
+ * @summary List API keys for a target user (admin)
+ */
+export const AdminListUserApiKeysParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const AdminListUserApiKeysResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      name: zod.string(),
+      keyPrefix: zod.string(),
+      last4: zod.string(),
+      maskedKey: zod.string(),
+      lastUsedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+      revokedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Create an API key for a target user (admin)
+ */
+export const AdminCreateUserApiKeyParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const AdminCreateUserApiKeyBody = zod.object({
+  name: zod.string().optional(),
+});
+
+/**
+ * @summary Revoke an API key for a target user (admin)
+ */
+export const AdminRevokeUserApiKeyParams = zod.object({
+  userId: zod.coerce.string(),
+  id: zod.coerce.string(),
+});
+
+export const AdminRevokeUserApiKeyResponse = zod.object({
+  apiKey: zod.object({
+    id: zod.string(),
+    name: zod.string(),
+    keyPrefix: zod.string(),
+    last4: zod.string(),
+    maskedKey: zod.string(),
+    lastUsedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+    revokedAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+    createdAt: zod.coerce.date(),
+  }),
+});
+
+/**
+ * @summary List GHL connections for a target user (admin)
+ */
+export const AdminListUserGhlConnectionsParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const AdminListUserGhlConnectionsResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      userId: zod.string(),
+      locationId: zod.string(),
+      companyId: zod.string().nullish(),
+      name: zod.string(),
+      authType: zod.string(),
+      tokenLast4: zod.string().nullish(),
+      tokenMasked: zod.string().nullish(),
+      tokenExpiresAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+      scopes: zod.array(zod.string()),
+      defaultWritebackMode: zod.string(),
+      contactDemoUrlFieldId: zod.string().nullish(),
+      opportunityDemoUrlFieldId: zod.string().nullish(),
+      addNote: zod.boolean(),
+      applyTag: zod.boolean(),
+      successTagId: zod.string().nullish(),
+      successTagName: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Create a GHL connection for a target user (admin)
+ */
+export const AdminCreateUserGhlConnectionParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const AdminCreateUserGhlConnectionBody = zod.object({
+  name: zod.string(),
+  locationId: zod.string(),
+  companyId: zod.string().nullish(),
+  privateIntegrationToken: zod.string(),
+  authType: zod.enum(["private_integration_token"]).optional(),
+  scopes: zod.array(zod.string()).optional(),
+  defaultWritebackMode: zod.string().nullish(),
+  contactDemoUrlFieldId: zod.string().nullish(),
+  opportunityDemoUrlFieldId: zod.string().nullish(),
+  addNote: zod.boolean().optional(),
+  applyTag: zod.boolean().optional(),
+  successTagId: zod.string().nullish(),
+  successTagName: zod.string().nullish(),
+});
+
+/**
+ * @summary Delete a GHL connection for a target user (admin)
+ */
+export const AdminDeleteUserGhlConnectionParams = zod.object({
+  userId: zod.coerce.string(),
+  id: zod.coerce.string(),
+});
+
+export const AdminDeleteUserGhlConnectionResponse = zod
+  .object({
+    success: zod.boolean(),
+  })
+  .and(
+    zod.object({
+      connection: zod.object({
+        id: zod.string(),
+        userId: zod.string(),
+        locationId: zod.string(),
+        companyId: zod.string().nullish(),
+        name: zod.string(),
+        authType: zod.string(),
+        tokenLast4: zod.string().nullish(),
+        tokenMasked: zod.string().nullish(),
+        tokenExpiresAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+        scopes: zod.array(zod.string()),
+        defaultWritebackMode: zod.string(),
+        contactDemoUrlFieldId: zod.string().nullish(),
+        opportunityDemoUrlFieldId: zod.string().nullish(),
+        addNote: zod.boolean(),
+        applyTag: zod.boolean(),
+        successTagId: zod.string().nullish(),
+        successTagName: zod.string().nullish(),
+        createdAt: zod.coerce.date(),
+        updatedAt: zod.coerce.date(),
+      }),
+    }),
+  );
+
+/**
+ * @summary List writeback attempts for a target user (admin)
+ */
+export const AdminListUserWritebacksParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const AdminListUserWritebacksQueryParams = zod.object({
+  demoRequestId: zod.coerce.string().optional(),
+});
+
+export const AdminListUserWritebacksResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      demoRequestId: zod.string(),
+      demoId: zod.string().nullish(),
+      ghlConnectionId: zod.string().nullish(),
+      targetType: zod.string(),
+      targetId: zod.string().nullish(),
+      fieldId: zod.string().nullish(),
+      status: zod.enum(["pending", "success", "failed"]),
+      requestMetadata: zod.unknown().optional(),
+      responseMetadata: zod.unknown().optional(),
+      errorMessage: zod.string().nullish(),
+      attemptedAt: zod.coerce.date(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
 });
 
 export const ListInvitesQueryParams = zod.object({

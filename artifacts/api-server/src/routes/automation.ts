@@ -7,11 +7,14 @@ import {
   db,
   demoRequestsTable,
   demosTable,
+  ghlConnectionsTable,
+  ghlWritebackAttemptsTable,
   promptVersionsTable,
   usersTable,
 } from "@workspace/db";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { blockDuringImpersonation, requireActiveUser } from "../middlewares/authMiddleware";
+import { encryptAutomationToken } from "../lib/automationCrypto";
 import {
   isOpenAIConfigured,
   runEnrichment,
@@ -22,6 +25,22 @@ const router = Router();
 
 const createApiKeyBody = z.object({
   name: z.string().trim().min(1).max(120).default("Default API key"),
+});
+
+const createGhlConnectionBody = z.object({
+  name: z.string().trim().min(1).max(120),
+  locationId: z.string().trim().min(1).max(128),
+  companyId: z.string().trim().min(1).max(128).optional(),
+  privateIntegrationToken: z.string().trim().min(1),
+  authType: z.literal("private_integration_token").optional(),
+  scopes: z.array(z.string().trim().min(1)).optional(),
+  defaultWritebackMode: z.string().trim().min(1).max(64).optional(),
+  contactDemoUrlFieldId: z.string().trim().min(1).max(128).optional(),
+  opportunityDemoUrlFieldId: z.string().trim().min(1).max(128).optional(),
+  addNote: z.boolean().optional(),
+  applyTag: z.boolean().optional(),
+  successTagId: z.string().trim().min(1).max(128).optional(),
+  successTagName: z.string().trim().min(1).optional(),
 });
 
 const demoRequestBody = z.object({
@@ -40,6 +59,19 @@ const demoRequestBody = z.object({
   options: z.object({
     enrich: z.boolean().optional(),
   }).optional(),
+});
+
+const createWritebackBody = z.object({
+  demoRequestId: z.string().trim().min(1),
+  demoId: z.string().trim().min(1).optional(),
+  ghlConnectionId: z.string().trim().min(1).optional(),
+  targetType: z.string().trim().min(1).max(64),
+  targetId: z.string().trim().min(1).max(128).optional(),
+  fieldId: z.string().trim().min(1).max(128).optional(),
+  status: z.enum(["pending", "success", "failed"]).optional(),
+  requestMetadata: z.unknown().optional(),
+  responseMetadata: z.unknown().optional(),
+  errorMessage: z.string().trim().min(1).optional(),
 });
 
 function hashKey(value: string): string {
@@ -113,6 +145,48 @@ function serializeApiKey(row: typeof apiKeysTable.$inferSelect) {
   };
 }
 
+function serializeGhlConnection(row: typeof ghlConnectionsTable.$inferSelect) {
+  return {
+    id: row.id,
+    userId: row.userId,
+    locationId: row.locationId,
+    companyId: row.companyId,
+    name: row.name,
+    authType: row.authType,
+    tokenLast4: row.tokenLast4,
+    tokenMasked: row.tokenLast4 ? `****${row.tokenLast4}` : null,
+    tokenExpiresAt: row.tokenExpiresAt,
+    scopes: row.scopes ?? [],
+    defaultWritebackMode: row.defaultWritebackMode,
+    contactDemoUrlFieldId: row.contactDemoUrlFieldId,
+    opportunityDemoUrlFieldId: row.opportunityDemoUrlFieldId,
+    addNote: row.addNote,
+    applyTag: row.applyTag,
+    successTagId: row.successTagId,
+    successTagName: row.successTagName,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function serializeWriteback(row: typeof ghlWritebackAttemptsTable.$inferSelect) {
+  return {
+    id: row.id,
+    demoRequestId: row.demoRequestId,
+    demoId: row.demoId,
+    ghlConnectionId: row.ghlConnectionId,
+    targetType: row.targetType,
+    targetId: row.targetId,
+    fieldId: row.fieldId,
+    status: row.status,
+    requestMetadata: row.requestPayload,
+    responseMetadata: row.responsePayload,
+    errorMessage: row.errorMessage,
+    attemptedAt: row.attemptedAt,
+    createdAt: row.createdAt,
+  };
+}
+
 async function authenticateApiKey(req: Request, res: Response) {
   const header = req.headers.authorization;
   const bearer = header?.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : "";
@@ -139,7 +213,7 @@ async function authenticateApiKey(req: Request, res: Response) {
     .set({ lastUsedAt: new Date() })
     .where(eq(apiKeysTable.id, row.key.id));
 
-  return row.user;
+  return row;
 }
 
 async function updateRequestStatus(
@@ -159,6 +233,14 @@ async function updateRequestStatus(
     .returning();
   return updated;
 }
+
+router.get("/v1/health", (_req, res) => {
+  res.json({
+    status: "ok",
+    service: "automation-api",
+    version: "v1",
+  });
+});
 
 router.post("/v1/api-keys", requireActiveUser, blockDuringImpersonation, async (req, res) => {
   if (!req.isAuthenticated()) {
@@ -249,8 +331,9 @@ router.get("/v1/demo-requests/:id", requireActiveUser, async (req, res) => {
 });
 
 router.post("/v1/demo-requests", async (req, res) => {
-  const user = await authenticateApiKey(req, res);
-  if (!user) return;
+  const auth = await authenticateApiKey(req, res);
+  if (!auth) return;
+  const { user, key } = auth;
 
   const parsed = demoRequestBody.safeParse(req.body);
   if (!parsed.success) {
@@ -298,6 +381,10 @@ router.post("/v1/demo-requests", async (req, res) => {
       .insert(demosTable)
       .values({
         userId: user.id,
+        createdVia: "api",
+        externalSource: data.source ?? "api",
+        apiKeyId: key.id,
+        externalSourceId: data.opportunityId ?? data.contactId ?? null,
         companyName: data.companyName,
         slug,
         websiteUrl,
@@ -383,6 +470,172 @@ router.post("/v1/demo-requests", async (req, res) => {
       demoRequest: failed,
     });
   }
+});
+
+router.get("/v1/ghl-connections", requireActiveUser, async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "UNAUTHORIZED", message: "Unauthorized" });
+    return;
+  }
+
+  const items = await db
+    .select()
+    .from(ghlConnectionsTable)
+    .where(eq(ghlConnectionsTable.userId, req.user.id))
+    .orderBy(desc(ghlConnectionsTable.createdAt));
+
+  res.json({ items: items.map(serializeGhlConnection) });
+});
+
+router.post("/v1/ghl-connections", requireActiveUser, blockDuringImpersonation, async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "UNAUTHORIZED", message: "Unauthorized" });
+    return;
+  }
+
+  const parsed = createGhlConnectionBody.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "VALIDATION_ERROR", message: parsed.error.message });
+    return;
+  }
+
+  const data = parsed.data;
+  const [created] = await db
+    .insert(ghlConnectionsTable)
+    .values({
+      userId: req.user.id,
+      locationId: data.locationId,
+      companyId: data.companyId ?? null,
+      name: data.name,
+      authType: data.authType ?? "private_integration_token",
+      encryptedAccessToken: encryptAutomationToken(data.privateIntegrationToken),
+      tokenLast4: data.privateIntegrationToken.slice(-4),
+      scopes: data.scopes ?? [],
+      defaultWritebackMode: data.defaultWritebackMode ?? "contact_note",
+      contactDemoUrlFieldId: data.contactDemoUrlFieldId ?? null,
+      opportunityDemoUrlFieldId: data.opportunityDemoUrlFieldId ?? null,
+      addNote: data.addNote ?? true,
+      applyTag: data.applyTag ?? false,
+      successTagId: data.successTagId ?? null,
+      successTagName: data.successTagName ?? null,
+    })
+    .returning();
+
+  res.status(201).json({ connection: serializeGhlConnection(created) });
+});
+
+router.delete("/v1/ghl-connections/:id", requireActiveUser, blockDuringImpersonation, async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "UNAUTHORIZED", message: "Unauthorized" });
+    return;
+  }
+
+  const id = String(req.params.id ?? "");
+  const [deleted] = await db
+    .delete(ghlConnectionsTable)
+    .where(and(eq(ghlConnectionsTable.id, id), eq(ghlConnectionsTable.userId, req.user.id)))
+    .returning();
+
+  if (!deleted) {
+    res.status(404).json({ error: "NOT_FOUND", message: "GHL connection not found." });
+    return;
+  }
+
+  res.json({ success: true, connection: serializeGhlConnection(deleted) });
+});
+
+router.get("/v1/writebacks", requireActiveUser, async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "UNAUTHORIZED", message: "Unauthorized" });
+    return;
+  }
+
+  const demoRequestId = typeof req.query.demoRequestId === "string" ? req.query.demoRequestId.trim() : "";
+  const requestRows = await db
+    .select({ id: demoRequestsTable.id })
+    .from(demoRequestsTable)
+    .where(
+      demoRequestId
+        ? and(eq(demoRequestsTable.userId, req.user.id), eq(demoRequestsTable.id, demoRequestId))
+        : eq(demoRequestsTable.userId, req.user.id),
+    );
+
+  const requestIds = requestRows.map((row) => row.id);
+  if (requestIds.length === 0) {
+    res.json({ items: [] });
+    return;
+  }
+
+  const items = await db
+    .select()
+    .from(ghlWritebackAttemptsTable)
+    .where(inArray(ghlWritebackAttemptsTable.demoRequestId, requestIds))
+    .orderBy(desc(ghlWritebackAttemptsTable.attemptedAt));
+
+  res.json({ items: items.map(serializeWriteback) });
+});
+
+router.post("/v1/writebacks", requireActiveUser, blockDuringImpersonation, async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "UNAUTHORIZED", message: "Unauthorized" });
+    return;
+  }
+
+  const parsed = createWritebackBody.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "VALIDATION_ERROR", message: parsed.error.message });
+    return;
+  }
+
+  const data = parsed.data;
+  const [requestRow] = await db
+    .select()
+    .from(demoRequestsTable)
+    .where(and(eq(demoRequestsTable.id, data.demoRequestId), eq(demoRequestsTable.userId, req.user.id)));
+  if (!requestRow) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Demo request not found." });
+    return;
+  }
+
+  if (data.demoId) {
+    const [demo] = await db
+      .select({ id: demosTable.id })
+      .from(demosTable)
+      .where(and(eq(demosTable.id, data.demoId), eq(demosTable.userId, req.user.id)));
+    if (!demo) {
+      res.status(404).json({ error: "NOT_FOUND", message: "Demo not found." });
+      return;
+    }
+  }
+
+  if (data.ghlConnectionId) {
+    const [connection] = await db
+      .select({ id: ghlConnectionsTable.id })
+      .from(ghlConnectionsTable)
+      .where(and(eq(ghlConnectionsTable.id, data.ghlConnectionId), eq(ghlConnectionsTable.userId, req.user.id)));
+    if (!connection) {
+      res.status(404).json({ error: "NOT_FOUND", message: "GHL connection not found." });
+      return;
+    }
+  }
+
+  const [created] = await db
+    .insert(ghlWritebackAttemptsTable)
+    .values({
+      demoRequestId: data.demoRequestId,
+      demoId: data.demoId ?? requestRow.demoId ?? null,
+      ghlConnectionId: data.ghlConnectionId ?? requestRow.ghlConnectionId ?? null,
+      targetType: data.targetType,
+      targetId: data.targetId ?? null,
+      fieldId: data.fieldId ?? null,
+      status: data.status ?? "pending",
+      requestPayload: data.requestMetadata ?? null,
+      responsePayload: data.responseMetadata ?? null,
+      errorMessage: data.errorMessage ?? null,
+    })
+    .returning();
+
+  res.status(201).json({ writeback: serializeWriteback(created) });
 });
 
 export default router;

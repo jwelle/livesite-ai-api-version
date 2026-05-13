@@ -3,6 +3,10 @@ import {
   db,
   usersTable,
   demosTable,
+  apiKeysTable,
+  ghlConnectionsTable,
+  ghlWritebackAttemptsTable,
+  demoRequestsTable,
   adminAuditLogTable,
   userInvitesTable,
   dailyUsageTable,
@@ -10,6 +14,7 @@ import {
 } from "@workspace/db";
 import { eq, ilike, or, sql, desc, count, inArray, and } from "drizzle-orm";
 import crypto from "crypto";
+import { z } from "zod";
 import { requireAdmin, blockDuringImpersonation } from "../middlewares/authMiddleware";
 import { logAdminAction } from "../services/audit";
 import {
@@ -20,8 +25,97 @@ import {
   setImpersonationCookie,
 } from "../lib/auth";
 import { getUsageDateString } from "../lib/config";
+import { encryptAutomationToken } from "../lib/automationCrypto";
 
 const router = Router();
+
+const createApiKeyBody = z.object({
+  name: z.string().trim().min(1).max(120).default("Default API key"),
+});
+
+const createGhlConnectionBody = z.object({
+  name: z.string().trim().min(1).max(120),
+  locationId: z.string().trim().min(1).max(128),
+  companyId: z.string().trim().min(1).max(128).optional(),
+  privateIntegrationToken: z.string().trim().min(1),
+  authType: z.literal("private_integration_token").optional(),
+  scopes: z.array(z.string().trim().min(1)).optional(),
+  defaultWritebackMode: z.string().trim().min(1).max(64).optional(),
+  contactDemoUrlFieldId: z.string().trim().min(1).max(128).optional(),
+  opportunityDemoUrlFieldId: z.string().trim().min(1).max(128).optional(),
+  addNote: z.boolean().optional(),
+  applyTag: z.boolean().optional(),
+  successTagId: z.string().trim().min(1).max(128).optional(),
+  successTagName: z.string().trim().min(1).optional(),
+});
+
+function hashKey(value: string): string {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function createPlaintextKey(): string {
+  return `lsi_${crypto.randomBytes(32).toString("base64url")}`;
+}
+
+function serializeApiKey(row: typeof apiKeysTable.$inferSelect) {
+  return {
+    id: row.id,
+    name: row.name,
+    keyPrefix: row.keyPrefix,
+    last4: row.last4,
+    maskedKey: `${row.keyPrefix}...${row.last4}`,
+    lastUsedAt: row.lastUsedAt,
+    revokedAt: row.revokedAt,
+    createdAt: row.createdAt,
+  };
+}
+
+function serializeGhlConnection(row: typeof ghlConnectionsTable.$inferSelect) {
+  return {
+    id: row.id,
+    userId: row.userId,
+    locationId: row.locationId,
+    companyId: row.companyId,
+    name: row.name,
+    authType: row.authType,
+    tokenLast4: row.tokenLast4,
+    tokenMasked: row.tokenLast4 ? `****${row.tokenLast4}` : null,
+    tokenExpiresAt: row.tokenExpiresAt,
+    scopes: row.scopes ?? [],
+    defaultWritebackMode: row.defaultWritebackMode,
+    contactDemoUrlFieldId: row.contactDemoUrlFieldId,
+    opportunityDemoUrlFieldId: row.opportunityDemoUrlFieldId,
+    addNote: row.addNote,
+    applyTag: row.applyTag,
+    successTagId: row.successTagId,
+    successTagName: row.successTagName,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function serializeWriteback(row: typeof ghlWritebackAttemptsTable.$inferSelect) {
+  return {
+    id: row.id,
+    demoRequestId: row.demoRequestId,
+    demoId: row.demoId,
+    ghlConnectionId: row.ghlConnectionId,
+    targetType: row.targetType,
+    targetId: row.targetId,
+    fieldId: row.fieldId,
+    status: row.status,
+    requestMetadata: row.requestPayload,
+    responseMetadata: row.responsePayload,
+    errorMessage: row.errorMessage,
+    attemptedAt: row.attemptedAt,
+    createdAt: row.createdAt,
+  };
+}
+
+async function getTargetUser(id: string) {
+  const [target] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+  return target ?? null;
+}
 
 router.use((req, res, next) => {
   if (!req.path.startsWith("/admin")) {
@@ -306,6 +400,202 @@ router.post("/admin/users/:id/set-role", blockDuringImpersonation, async (req, r
   if (!target) { res.status(404).json({ error: "NOT_FOUND", message: "User not found" }); return; }
   await audit(req, "user_set_role", id, { email: target.email, role });
   res.json({ success: true, user: target });
+});
+
+// ---- USER AUTOMATION ------------------------------------------------------
+router.get("/admin/users/:userId/api-keys", async (req, res) => {
+  const userId = req.params.userId as string;
+  const target = await getTargetUser(userId);
+  if (!target) {
+    res.status(404).json({ error: "NOT_FOUND", message: "User not found" });
+    return;
+  }
+
+  const keys = await db
+    .select()
+    .from(apiKeysTable)
+    .where(eq(apiKeysTable.userId, userId))
+    .orderBy(desc(apiKeysTable.createdAt));
+
+  res.json({ items: keys.map(serializeApiKey) });
+});
+
+router.post("/admin/users/:userId/api-keys", blockDuringImpersonation, async (req, res) => {
+  const userId = req.params.userId as string;
+  const target = await getTargetUser(userId);
+  if (!target) {
+    res.status(404).json({ error: "NOT_FOUND", message: "User not found" });
+    return;
+  }
+
+  const parsed = createApiKeyBody.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "VALIDATION_ERROR", message: parsed.error.message });
+    return;
+  }
+
+  const plaintextKey = createPlaintextKey();
+  const [created] = await db
+    .insert(apiKeysTable)
+    .values({
+      userId,
+      name: parsed.data.name,
+      keyHash: hashKey(plaintextKey),
+      keyPrefix: plaintextKey.slice(0, 8),
+      last4: plaintextKey.slice(-4),
+    })
+    .returning();
+
+  await audit(req, "user_create_api_key", userId, { email: target.email, apiKeyId: created.id });
+  res.status(201).json({
+    apiKey: serializeApiKey(created),
+    plaintextKey,
+  });
+});
+
+router.post("/admin/users/:userId/api-keys/:id/revoke", blockDuringImpersonation, async (req, res) => {
+  const userId = req.params.userId as string;
+  const keyId = req.params.id as string;
+  const target = await getTargetUser(userId);
+  if (!target) {
+    res.status(404).json({ error: "NOT_FOUND", message: "User not found" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(apiKeysTable)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(apiKeysTable.id, keyId), eq(apiKeysTable.userId, userId)))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "NOT_FOUND", message: "API key not found." });
+    return;
+  }
+
+  await audit(req, "user_revoke_api_key", userId, { email: target.email, apiKeyId: updated.id });
+  res.json({ apiKey: serializeApiKey(updated) });
+});
+
+router.get("/admin/users/:userId/ghl-connections", async (req, res) => {
+  const userId = req.params.userId as string;
+  const target = await getTargetUser(userId);
+  if (!target) {
+    res.status(404).json({ error: "NOT_FOUND", message: "User not found" });
+    return;
+  }
+
+  const items = await db
+    .select()
+    .from(ghlConnectionsTable)
+    .where(eq(ghlConnectionsTable.userId, userId))
+    .orderBy(desc(ghlConnectionsTable.createdAt));
+
+  res.json({ items: items.map(serializeGhlConnection) });
+});
+
+router.post("/admin/users/:userId/ghl-connections", blockDuringImpersonation, async (req, res) => {
+  const userId = req.params.userId as string;
+  const target = await getTargetUser(userId);
+  if (!target) {
+    res.status(404).json({ error: "NOT_FOUND", message: "User not found" });
+    return;
+  }
+
+  const parsed = createGhlConnectionBody.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "VALIDATION_ERROR", message: parsed.error.message });
+    return;
+  }
+
+  const data = parsed.data;
+  const [created] = await db
+    .insert(ghlConnectionsTable)
+    .values({
+      userId,
+      locationId: data.locationId,
+      companyId: data.companyId ?? null,
+      name: data.name,
+      authType: data.authType ?? "private_integration_token",
+      encryptedAccessToken: encryptAutomationToken(data.privateIntegrationToken),
+      tokenLast4: data.privateIntegrationToken.slice(-4),
+      scopes: data.scopes ?? [],
+      defaultWritebackMode: data.defaultWritebackMode ?? "contact_note",
+      contactDemoUrlFieldId: data.contactDemoUrlFieldId ?? null,
+      opportunityDemoUrlFieldId: data.opportunityDemoUrlFieldId ?? null,
+      addNote: data.addNote ?? true,
+      applyTag: data.applyTag ?? false,
+      successTagId: data.successTagId ?? null,
+      successTagName: data.successTagName ?? null,
+    })
+    .returning();
+
+  await audit(req, "user_create_ghl_connection", userId, {
+    email: target.email,
+    ghlConnectionId: created.id,
+    locationId: created.locationId,
+  });
+  res.status(201).json({ connection: serializeGhlConnection(created) });
+});
+
+router.delete("/admin/users/:userId/ghl-connections/:id", blockDuringImpersonation, async (req, res) => {
+  const userId = req.params.userId as string;
+  const connectionId = req.params.id as string;
+  const target = await getTargetUser(userId);
+  if (!target) {
+    res.status(404).json({ error: "NOT_FOUND", message: "User not found" });
+    return;
+  }
+
+  const [deleted] = await db
+    .delete(ghlConnectionsTable)
+    .where(and(eq(ghlConnectionsTable.id, connectionId), eq(ghlConnectionsTable.userId, userId)))
+    .returning();
+
+  if (!deleted) {
+    res.status(404).json({ error: "NOT_FOUND", message: "GHL connection not found." });
+    return;
+  }
+
+  await audit(req, "user_delete_ghl_connection", userId, {
+    email: target.email,
+    ghlConnectionId: deleted.id,
+    locationId: deleted.locationId,
+  });
+  res.json({ success: true, connection: serializeGhlConnection(deleted) });
+});
+
+router.get("/admin/users/:userId/writebacks", async (req, res) => {
+  const userId = req.params.userId as string;
+  const target = await getTargetUser(userId);
+  if (!target) {
+    res.status(404).json({ error: "NOT_FOUND", message: "User not found" });
+    return;
+  }
+
+  const demoRequestId = typeof req.query.demoRequestId === "string" ? req.query.demoRequestId.trim() : "";
+  const requestRows = await db
+    .select({ id: demoRequestsTable.id })
+    .from(demoRequestsTable)
+    .where(
+      demoRequestId
+        ? and(eq(demoRequestsTable.userId, userId), eq(demoRequestsTable.id, demoRequestId))
+        : eq(demoRequestsTable.userId, userId),
+    );
+
+  const requestIds = requestRows.map((row) => row.id);
+  if (requestIds.length === 0) {
+    res.json({ items: [] });
+    return;
+  }
+
+  const items = await db
+    .select()
+    .from(ghlWritebackAttemptsTable)
+    .where(inArray(ghlWritebackAttemptsTable.demoRequestId, requestIds))
+    .orderBy(desc(ghlWritebackAttemptsTable.attemptedAt));
+
+  res.json({ items: items.map(serializeWriteback) });
 });
 
 // ---- INVITES --------------------------------------------------------------

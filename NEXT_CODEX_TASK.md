@@ -1,0 +1,333 @@
+# Codex Task: Automation API v1 Routes
+
+## Context
+
+We have merged/pulled the Supabase Auth and public demo stabilization work into `main`.
+
+This app is Live Site AI. The current branch should be created from the latest `main`.
+
+Suggested new branch:
+
+```text
+codex/automation-api-v1-routes
+```
+
+## Current Known-Good Checkpoint
+
+Verified locally:
+
+- Frontend runs on `http://localhost:8081`
+- API health check returns `200 OK`
+- API returns `{"status":"ok"}`
+- Supabase Auth is stabilized enough for local testing
+- Public demo route works at `/demo/:slug`
+- Public demo loads without login
+- Chat widget loads on the public demo page
+- Website background renders correctly in normal Chrome
+- Codex/in-app browser may not render the website background because of sandbox/browser limitations
+- Admin demo UX issues were addressed or validated:
+  - Open Public Demo
+  - Copy Link clipboard fallback handling
+  - Self-impersonation prevention
+
+## Important Constraints
+
+Do **not** refactor or destabilize:
+
+- Supabase Auth
+- `/demo/:slug`
+- public demo API lookup
+- dashboard auth protection
+- existing demo creation/edit flows
+- AI enrichment
+
+Do not make broad rewrites.
+
+Do not change AI enrichment yet. We will test AI enrichment after this slice.
+
+## Next Development Goal
+
+Start the next backend development slice:
+
+```text
+automation /api/v1 routes
+```
+
+The prior project status said:
+
+```text
+Automation /api/v1/* routes are not mounted yet.
+```
+
+We need to inspect, plan, and then implement the smallest missing route layer needed for automation integrations.
+
+## Start by Inspecting Only
+
+Please inspect these files first:
+
+- `PROJECT_STATUS.md`
+- `TECHNICAL_OVERVIEW.md`
+- `artifacts/api-server/src/routes/index.ts`
+- `artifacts/api-server/src/routes/demos.ts`
+- `artifacts/api-server/src/routes/admin.ts`
+- `lib/db/src/schema`
+- `lib/api-spec/openapi.yaml`
+
+Also search the repo for any existing files, tables, functions, or references related to:
+
+- API keys
+- GHL connections
+- GoHighLevel
+- automation
+- webhooks
+- writebacks
+- demo requests
+- external integrations
+
+## Report Before Editing
+
+Before changing any files, report:
+
+1. What automation-related tables already exist
+2. What automation-related routes already exist
+3. What `/api/v1` routes are missing
+4. Whether generated API client updates are needed
+5. Whether DB migrations are needed
+6. The smallest safe implementation plan
+
+Do not modify files until after reporting this plan.
+
+## Expected Route Areas
+
+Look for or plan the smallest useful version of the following.
+
+### 1. Automation API health/status
+
+Example target:
+
+```text
+GET /api/v1/health
+```
+
+Purpose:
+
+- Confirms the automation API is mounted
+- Does not require authentication
+- Returns a simple status payload
+
+Expected response shape:
+
+```json
+{
+  "status": "ok",
+  "service": "automation-api",
+  "version": "v1"
+}
+```
+
+### 2. API key lifecycle
+
+Possible dashboard/admin routes:
+
+```text
+GET /api/api-keys
+POST /api/api-keys
+DELETE /api/api-keys/:id
+```
+
+Or, if the current architecture prefers `/api/v1`, propose the cleanest route structure before implementing.
+
+Requirements:
+
+- API keys must be stored securely
+- Do not return raw API keys after creation
+- Only show the raw key once at creation time
+- Store a hash, prefix, label, created date, last used date, and owner user ID
+- API keys should belong to the authenticated app user
+- Admins should not accidentally expose user secrets
+
+### 3. GHL connection create/list without token leakage
+
+Possible routes:
+
+```text
+GET /api/ghl-connections
+POST /api/ghl-connections
+DELETE /api/ghl-connections/:id
+```
+
+Requirements:
+
+- Store GHL/private integration token securely
+- Never return the full GHL token in API responses
+- Return only metadata such as connection name, created date, token prefix, or masked value
+- Connection should belong to the authenticated app user
+- Keep implementation minimal
+
+### 4. Demo request creation via API key
+
+Possible route:
+
+```text
+POST /api/v1/demo-requests
+```
+
+Purpose:
+
+- Allow an external workflow, such as GoHighLevel, to create or request a demo using an API key
+- Use API key authentication, not Supabase user auth
+- Create a record or create a demo depending on existing schema and project design
+- If schema is unclear, implement the smallest safe version and document the next step
+
+Expected input might include:
+
+```json
+{
+  "companyName": "Example Roofing",
+  "websiteUrl": "https://example.com",
+  "industry": "Roofing",
+  "contactName": "Jane Doe",
+  "contactEmail": "jane@example.com",
+  "contactPhone": "555-555-5555",
+  "source": "ghl"
+}
+```
+
+Expected response should include:
+
+```json
+{
+  "success": true,
+  "demoId": "...",
+  "slug": "...",
+  "publicUrl": "/demo/example-roofing-abcd"
+}
+```
+
+Only implement this if it fits the existing schema safely.
+
+### 5. Writeback attempt records
+
+Possible route area:
+
+```text
+POST /api/v1/writebacks
+GET /api/v1/writebacks
+```
+
+Purpose:
+
+- Track attempts to write data back to GoHighLevel or other systems
+- Capture status, payload metadata, error messages, and timestamps
+- Do not store or expose secrets in responses
+
+If writeback tables do not exist, report whether a migration is required before creating one.
+
+## Implementation Rules
+
+After reporting the plan, implement only the smallest safe backend slice.
+
+Do not change auth unless the route layer absolutely requires it.
+
+Do not change public demo routing.
+
+Do not change the public demo page.
+
+Do not change AI enrichment yet.
+
+Do not refactor working dashboard functionality.
+
+Prefer small, isolated files.
+
+If route naming is ambiguous, choose consistency with the existing API server structure and explain the choice.
+
+## Security Requirements
+
+- Never log or return full API keys
+- Never log or return full GHL/private integration tokens
+- Use hashed API keys for verification
+- Use clear unauthorized responses for missing/invalid API keys
+- Do not allow unauthenticated public access to user-owned resources
+- Keep `/api/v1/health` public only if it returns no sensitive information
+- Validate request bodies
+- Avoid leaking database errors to external callers
+
+## Verification Target
+
+After implementation, verify:
+
+1. API starts
+2. Frontend still starts
+3. `/api/healthz` still returns `200`
+4. Existing dashboard routes still work
+5. Existing public demo route still works
+6. New `/api/v1` routes return expected responses
+7. Secret tokens are never returned in API responses
+8. Unauthorized requests are rejected correctly
+9. API-key-authorized requests work where intended
+
+## Suggested Smoke Tests
+
+Run or propose curl tests such as:
+
+```powershell
+curl http://localhost:8080/api/healthz
+curl http://localhost:8080/api/v1/health
+```
+
+If an API key route is implemented, test:
+
+```powershell
+# Missing API key should fail
+curl -X POST http://localhost:8080/api/v1/demo-requests `
+  -H "Content-Type: application/json" `
+  -d '{"companyName":"Example Roofing","websiteUrl":"https://example.com"}'
+```
+
+If API key creation is implemented through authenticated dashboard routes, explain how to test it from the browser session or with an auth token.
+
+## Documentation Updates
+
+Update `PROJECT_STATUS.md` with:
+
+- What was implemented
+- What was verified
+- Any known limitations
+- Next recommended step
+
+If new env vars are required, update `.env.example`.
+
+If new routes are implemented, update the relevant API spec or route documentation if that is already part of the project workflow.
+
+## Stop Conditions
+
+Stop and report before continuing if:
+
+- You discover schema drift
+- Existing automation tables are missing
+- The API client generation pipeline fails
+- A migration is required
+- Any proposed change would affect Supabase Auth
+- Any proposed change would affect public demo routing
+- Any proposed change would affect AI enrichment
+- You are unsure whether to create demos directly or create demo request records first
+
+## Final Deliverable
+
+At the end, report:
+
+1. Files changed
+2. Routes added
+3. Tables used or migrations added
+4. Verification commands run
+5. What passed
+6. What still needs testing
+7. Recommended next branch/task
+
+## Instruction to Codex
+
+After saving this file as `NEXT_CODEX_TASK.md`, tell Codex:
+
+```text
+Please read NEXT_CODEX_TASK.md and follow it exactly. Start with inspection and report the plan before editing files.
+```

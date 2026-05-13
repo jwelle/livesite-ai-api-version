@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import type { GetAdminUsersStatus } from "@workspace/api-client-react";
 import {
   useGetAdminUsers,
@@ -75,6 +76,7 @@ import {
   Copy,
   Link as LinkIcon,
   Trash2,
+  KeyRound,
 } from "lucide-react";
 
 const PAGE_SIZE = 25;
@@ -110,6 +112,7 @@ export default function AdminUsers() {
 // ---------------------------------------------------------------------------
 
 function UsersPanel() {
+  const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -329,6 +332,15 @@ function UsersPanel() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              {!isSelf && u.status === "active" && (
+                                <DropdownMenuItem
+                                  onClick={() => setLocation(`/admin/users/${u.id}/automation?email=${encodeURIComponent(u.email ?? "")}`)}
+                                  data-testid={`btn-manage-automation-${u.id}`}
+                                >
+                                  <KeyRound className="mr-2 h-4 w-4" />
+                                  Manage automation
+                                </DropdownMenuItem>
+                              )}
                               {!isSelf && u.status === "active" && (
                                 <DropdownMenuItem
                                   onClick={() => startImpersonate(u.id)}

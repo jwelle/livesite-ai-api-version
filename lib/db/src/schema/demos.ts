@@ -30,6 +30,10 @@ export type InsertAgencySettings = typeof agencySettingsTable.$inferInsert;
 export const demosTable = pgTable("demos", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  createdVia: varchar("created_via", { length: 32 }),
+  externalSource: varchar("external_source", { length: 64 }),
+  apiKeyId: varchar("api_key_id"),
+  externalSourceId: varchar("external_source_id", { length: 128 }),
   companyName: text("company_name").notNull(),
   slug: varchar("slug", { length: 200 }).notNull().unique(),
   websiteUrl: text("website_url").notNull(),
@@ -66,6 +70,8 @@ export const demosTable = pgTable("demos", {
 }, (table) => [
   index("IDX_demos_user_id").on(table.userId),
   index("IDX_demos_slug").on(table.slug),
+  index("IDX_demos_created_via").on(table.createdVia),
+  index("IDX_demos_api_key_id").on(table.apiKeyId),
 ]);
 
 export const insertDemoSchema = createInsertSchema(demosTable).omit({ id: true, viewCount: true, callClickCount: true, calendarClickCount: true, createdAt: true, updatedAt: true });

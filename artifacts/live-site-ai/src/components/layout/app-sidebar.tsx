@@ -13,7 +13,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, PlusCircle, Settings, LogOut, Code2, Shield, Users, FileText } from "lucide-react";
+import { LayoutDashboard, PlusCircle, Settings, LogOut, Code2, Shield, Users, FileText, KeyRound } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ReactNode } from "react";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
@@ -60,6 +60,14 @@ export function AppSidebar({ children }: { children: ReactNode }) {
                       <Link href="/settings" data-testid="link-settings">
                         <Settings />
                         <span>Settings</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={location === "/automation"}>
+                      <Link href="/automation" data-testid="link-automation">
+                        <KeyRound />
+                        <span>Automation</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

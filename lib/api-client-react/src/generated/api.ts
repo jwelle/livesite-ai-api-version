@@ -20,14 +20,27 @@ import type {
   AdminAuditLogList,
   AdminDemosList,
   AdminInvitesList,
+  AdminListUserWritebacksParams,
   AdminUsersList,
   AgencySettings,
+  ApiKeyResponse,
+  ApiKeysList,
   AuthUserEnvelope,
+  AutomationHealthStatus,
+  CreateApiKeyBody,
+  CreateApiKeyResponse,
   CreateDemoBody,
+  CreateDemoRequestBody,
+  CreateDemoRequestResponse,
+  CreateGhlConnectionBody,
   CreateInviteBody,
   CreateInviteResponse,
+  CreateWritebackBody,
   DashboardStats,
+  DeleteGhlConnectionResponse,
   Demo,
+  DemoRequest,
+  DemoRequestsList,
   EnrichBusinessBody,
   EnrichmentResult,
   ErrorEnvelope,
@@ -38,9 +51,14 @@ import type {
   GetAdminDemosParams,
   GetAdminUsersParams,
   GetInviteStatusParams,
+  GhlConnectionResponse,
+  GhlConnectionsList,
+  GhlWritebackAttemptsList,
+  GhlWritebackResponse,
   HealthStatus,
   InviteStatusEnvelope,
   ListInvitesParams,
+  ListWritebacksParams,
   LogoutSuccess,
   ManualUserUpsertBody,
   ManualUserUpsertResponse,
@@ -2420,6 +2438,1002 @@ export function useGetMyUsage<
 }
 
 /**
+ * @summary Automation API health
+ */
+export const getGetAutomationHealthUrl = () => {
+  return `/api/v1/health`;
+};
+
+export const getAutomationHealth = async (
+  options?: RequestInit,
+): Promise<AutomationHealthStatus> => {
+  return customFetch<AutomationHealthStatus>(getGetAutomationHealthUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAutomationHealthQueryKey = () => {
+  return [`/api/v1/health`] as const;
+};
+
+export const getGetAutomationHealthQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAutomationHealth>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAutomationHealth>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAutomationHealthQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAutomationHealth>>
+  > = ({ signal }) => getAutomationHealth({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAutomationHealth>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAutomationHealthQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAutomationHealth>>
+>;
+export type GetAutomationHealthQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Automation API health
+ */
+
+export function useGetAutomationHealth<
+  TData = Awaited<ReturnType<typeof getAutomationHealth>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAutomationHealth>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAutomationHealthQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List API keys for the authenticated user
+ */
+export const getListApiKeysUrl = () => {
+  return `/api/v1/api-keys`;
+};
+
+export const listApiKeys = async (
+  options?: RequestInit,
+): Promise<ApiKeysList> => {
+  return customFetch<ApiKeysList>(getListApiKeysUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListApiKeysQueryKey = () => {
+  return [`/api/v1/api-keys`] as const;
+};
+
+export const getListApiKeysQueryOptions = <
+  TData = Awaited<ReturnType<typeof listApiKeys>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listApiKeys>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListApiKeysQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listApiKeys>>> = ({
+    signal,
+  }) => listApiKeys({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listApiKeys>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListApiKeysQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listApiKeys>>
+>;
+export type ListApiKeysQueryError = ErrorType<void>;
+
+/**
+ * @summary List API keys for the authenticated user
+ */
+
+export function useListApiKeys<
+  TData = Awaited<ReturnType<typeof listApiKeys>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listApiKeys>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListApiKeysQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create an API key for the authenticated user
+ */
+export const getCreateApiKeyUrl = () => {
+  return `/api/v1/api-keys`;
+};
+
+export const createApiKey = async (
+  createApiKeyBody?: CreateApiKeyBody,
+  options?: RequestInit,
+): Promise<CreateApiKeyResponse> => {
+  return customFetch<CreateApiKeyResponse>(getCreateApiKeyUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createApiKeyBody),
+  });
+};
+
+export const getCreateApiKeyMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createApiKey>>,
+    TError,
+    { data: BodyType<CreateApiKeyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createApiKey>>,
+  TError,
+  { data: BodyType<CreateApiKeyBody> },
+  TContext
+> => {
+  const mutationKey = ["createApiKey"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createApiKey>>,
+    { data: BodyType<CreateApiKeyBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createApiKey(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateApiKeyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createApiKey>>
+>;
+export type CreateApiKeyMutationBody = BodyType<CreateApiKeyBody>;
+export type CreateApiKeyMutationError = ErrorType<void>;
+
+/**
+ * @summary Create an API key for the authenticated user
+ */
+export const useCreateApiKey = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createApiKey>>,
+    TError,
+    { data: BodyType<CreateApiKeyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createApiKey>>,
+  TError,
+  { data: BodyType<CreateApiKeyBody> },
+  TContext
+> => {
+  return useMutation(getCreateApiKeyMutationOptions(options));
+};
+
+/**
+ * @summary Revoke an API key for the authenticated user
+ */
+export const getRevokeApiKeyUrl = (id: string) => {
+  return `/api/v1/api-keys/${id}/revoke`;
+};
+
+export const revokeApiKey = async (
+  id: string,
+  options?: RequestInit,
+): Promise<ApiKeyResponse> => {
+  return customFetch<ApiKeyResponse>(getRevokeApiKeyUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRevokeApiKeyMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revokeApiKey>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof revokeApiKey>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["revokeApiKey"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof revokeApiKey>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return revokeApiKey(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RevokeApiKeyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof revokeApiKey>>
+>;
+
+export type RevokeApiKeyMutationError = ErrorType<void>;
+
+/**
+ * @summary Revoke an API key for the authenticated user
+ */
+export const useRevokeApiKey = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revokeApiKey>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof revokeApiKey>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getRevokeApiKeyMutationOptions(options));
+};
+
+/**
+ * @summary List automation demo requests for the authenticated user
+ */
+export const getListDemoRequestsUrl = () => {
+  return `/api/v1/demo-requests`;
+};
+
+export const listDemoRequests = async (
+  options?: RequestInit,
+): Promise<DemoRequestsList> => {
+  return customFetch<DemoRequestsList>(getListDemoRequestsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDemoRequestsQueryKey = () => {
+  return [`/api/v1/demo-requests`] as const;
+};
+
+export const getListDemoRequestsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDemoRequests>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDemoRequests>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListDemoRequestsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listDemoRequests>>
+  > = ({ signal }) => listDemoRequests({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDemoRequests>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDemoRequestsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDemoRequests>>
+>;
+export type ListDemoRequestsQueryError = ErrorType<void>;
+
+/**
+ * @summary List automation demo requests for the authenticated user
+ */
+
+export function useListDemoRequests<
+  TData = Awaited<ReturnType<typeof listDemoRequests>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDemoRequests>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDemoRequestsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a demo request using an API key
+ */
+export const getCreateDemoRequestUrl = () => {
+  return `/api/v1/demo-requests`;
+};
+
+export const createDemoRequest = async (
+  createDemoRequestBody: CreateDemoRequestBody,
+  options?: RequestInit,
+): Promise<CreateDemoRequestResponse> => {
+  return customFetch<CreateDemoRequestResponse>(getCreateDemoRequestUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createDemoRequestBody),
+  });
+};
+
+export const getCreateDemoRequestMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createDemoRequest>>,
+    TError,
+    { data: BodyType<CreateDemoRequestBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createDemoRequest>>,
+  TError,
+  { data: BodyType<CreateDemoRequestBody> },
+  TContext
+> => {
+  const mutationKey = ["createDemoRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createDemoRequest>>,
+    { data: BodyType<CreateDemoRequestBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createDemoRequest(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateDemoRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createDemoRequest>>
+>;
+export type CreateDemoRequestMutationBody = BodyType<CreateDemoRequestBody>;
+export type CreateDemoRequestMutationError = ErrorType<void>;
+
+/**
+ * @summary Create a demo request using an API key
+ */
+export const useCreateDemoRequest = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createDemoRequest>>,
+    TError,
+    { data: BodyType<CreateDemoRequestBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createDemoRequest>>,
+  TError,
+  { data: BodyType<CreateDemoRequestBody> },
+  TContext
+> => {
+  return useMutation(getCreateDemoRequestMutationOptions(options));
+};
+
+/**
+ * @summary Get one automation demo request for the authenticated user
+ */
+export const getGetDemoRequestUrl = (id: string) => {
+  return `/api/v1/demo-requests/${id}`;
+};
+
+export const getDemoRequest = async (
+  id: string,
+  options?: RequestInit,
+): Promise<DemoRequest> => {
+  return customFetch<DemoRequest>(getGetDemoRequestUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDemoRequestQueryKey = (id: string) => {
+  return [`/api/v1/demo-requests/${id}`] as const;
+};
+
+export const getGetDemoRequestQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDemoRequest>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDemoRequest>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDemoRequestQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getDemoRequest>>> = ({
+    signal,
+  }) => getDemoRequest(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDemoRequest>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDemoRequestQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDemoRequest>>
+>;
+export type GetDemoRequestQueryError = ErrorType<void>;
+
+/**
+ * @summary Get one automation demo request for the authenticated user
+ */
+
+export function useGetDemoRequest<
+  TData = Awaited<ReturnType<typeof getDemoRequest>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDemoRequest>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDemoRequestQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List GHL connections for the authenticated user
+ */
+export const getListGhlConnectionsUrl = () => {
+  return `/api/v1/ghl-connections`;
+};
+
+export const listGhlConnections = async (
+  options?: RequestInit,
+): Promise<GhlConnectionsList> => {
+  return customFetch<GhlConnectionsList>(getListGhlConnectionsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListGhlConnectionsQueryKey = () => {
+  return [`/api/v1/ghl-connections`] as const;
+};
+
+export const getListGhlConnectionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listGhlConnections>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listGhlConnections>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListGhlConnectionsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listGhlConnections>>
+  > = ({ signal }) => listGhlConnections({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listGhlConnections>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListGhlConnectionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listGhlConnections>>
+>;
+export type ListGhlConnectionsQueryError = ErrorType<void>;
+
+/**
+ * @summary List GHL connections for the authenticated user
+ */
+
+export function useListGhlConnections<
+  TData = Awaited<ReturnType<typeof listGhlConnections>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listGhlConnections>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListGhlConnectionsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a GHL connection for the authenticated user
+ */
+export const getCreateGhlConnectionUrl = () => {
+  return `/api/v1/ghl-connections`;
+};
+
+export const createGhlConnection = async (
+  createGhlConnectionBody: CreateGhlConnectionBody,
+  options?: RequestInit,
+): Promise<GhlConnectionResponse> => {
+  return customFetch<GhlConnectionResponse>(getCreateGhlConnectionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createGhlConnectionBody),
+  });
+};
+
+export const getCreateGhlConnectionMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGhlConnection>>,
+    TError,
+    { data: BodyType<CreateGhlConnectionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createGhlConnection>>,
+  TError,
+  { data: BodyType<CreateGhlConnectionBody> },
+  TContext
+> => {
+  const mutationKey = ["createGhlConnection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createGhlConnection>>,
+    { data: BodyType<CreateGhlConnectionBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createGhlConnection(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateGhlConnectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createGhlConnection>>
+>;
+export type CreateGhlConnectionMutationBody = BodyType<CreateGhlConnectionBody>;
+export type CreateGhlConnectionMutationError = ErrorType<void>;
+
+/**
+ * @summary Create a GHL connection for the authenticated user
+ */
+export const useCreateGhlConnection = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGhlConnection>>,
+    TError,
+    { data: BodyType<CreateGhlConnectionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createGhlConnection>>,
+  TError,
+  { data: BodyType<CreateGhlConnectionBody> },
+  TContext
+> => {
+  return useMutation(getCreateGhlConnectionMutationOptions(options));
+};
+
+/**
+ * @summary Delete a GHL connection for the authenticated user
+ */
+export const getDeleteGhlConnectionUrl = (id: string) => {
+  return `/api/v1/ghl-connections/${id}`;
+};
+
+export const deleteGhlConnection = async (
+  id: string,
+  options?: RequestInit,
+): Promise<DeleteGhlConnectionResponse> => {
+  return customFetch<DeleteGhlConnectionResponse>(
+    getDeleteGhlConnectionUrl(id),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+export const getDeleteGhlConnectionMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteGhlConnection>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteGhlConnection>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteGhlConnection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteGhlConnection>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteGhlConnection(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteGhlConnectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteGhlConnection>>
+>;
+
+export type DeleteGhlConnectionMutationError = ErrorType<void>;
+
+/**
+ * @summary Delete a GHL connection for the authenticated user
+ */
+export const useDeleteGhlConnection = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteGhlConnection>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteGhlConnection>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteGhlConnectionMutationOptions(options));
+};
+
+/**
+ * @summary List writeback attempts for the authenticated user
+ */
+export const getListWritebacksUrl = (params?: ListWritebacksParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/writebacks?${stringifiedParams}`
+    : `/api/v1/writebacks`;
+};
+
+export const listWritebacks = async (
+  params?: ListWritebacksParams,
+  options?: RequestInit,
+): Promise<GhlWritebackAttemptsList> => {
+  return customFetch<GhlWritebackAttemptsList>(getListWritebacksUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListWritebacksQueryKey = (params?: ListWritebacksParams) => {
+  return [`/api/v1/writebacks`, ...(params ? [params] : [])] as const;
+};
+
+export const getListWritebacksQueryOptions = <
+  TData = Awaited<ReturnType<typeof listWritebacks>>,
+  TError = ErrorType<void>,
+>(
+  params?: ListWritebacksParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listWritebacks>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListWritebacksQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listWritebacks>>> = ({
+    signal,
+  }) => listWritebacks(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listWritebacks>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListWritebacksQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listWritebacks>>
+>;
+export type ListWritebacksQueryError = ErrorType<void>;
+
+/**
+ * @summary List writeback attempts for the authenticated user
+ */
+
+export function useListWritebacks<
+  TData = Awaited<ReturnType<typeof listWritebacks>>,
+  TError = ErrorType<void>,
+>(
+  params?: ListWritebacksParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listWritebacks>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListWritebacksQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a writeback attempt record for the authenticated user
+ */
+export const getCreateWritebackUrl = () => {
+  return `/api/v1/writebacks`;
+};
+
+export const createWriteback = async (
+  createWritebackBody: CreateWritebackBody,
+  options?: RequestInit,
+): Promise<GhlWritebackResponse> => {
+  return customFetch<GhlWritebackResponse>(getCreateWritebackUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createWritebackBody),
+  });
+};
+
+export const getCreateWritebackMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createWriteback>>,
+    TError,
+    { data: BodyType<CreateWritebackBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createWriteback>>,
+  TError,
+  { data: BodyType<CreateWritebackBody> },
+  TContext
+> => {
+  const mutationKey = ["createWriteback"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createWriteback>>,
+    { data: BodyType<CreateWritebackBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createWriteback(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateWritebackMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createWriteback>>
+>;
+export type CreateWritebackMutationBody = BodyType<CreateWritebackBody>;
+export type CreateWritebackMutationError = ErrorType<void>;
+
+/**
+ * @summary Create a writeback attempt record for the authenticated user
+ */
+export const useCreateWriteback = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createWriteback>>,
+    TError,
+    { data: BodyType<CreateWritebackBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createWriteback>>,
+  TError,
+  { data: BodyType<CreateWritebackBody> },
+  TContext
+> => {
+  return useMutation(getCreateWritebackMutationOptions(options));
+};
+
+/**
  * @summary List all users (admin)
  */
 export const getGetAdminUsersUrl = (params?: GetAdminUsersParams) => {
@@ -2916,6 +3930,668 @@ export const useSetUserRole = <
 > => {
   return useMutation(getSetUserRoleMutationOptions(options));
 };
+
+/**
+ * @summary List API keys for a target user (admin)
+ */
+export const getAdminListUserApiKeysUrl = (userId: string) => {
+  return `/api/admin/users/${userId}/api-keys`;
+};
+
+export const adminListUserApiKeys = async (
+  userId: string,
+  options?: RequestInit,
+): Promise<ApiKeysList> => {
+  return customFetch<ApiKeysList>(getAdminListUserApiKeysUrl(userId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getAdminListUserApiKeysQueryKey = (userId: string) => {
+  return [`/api/admin/users/${userId}/api-keys`] as const;
+};
+
+export const getAdminListUserApiKeysQueryOptions = <
+  TData = Awaited<ReturnType<typeof adminListUserApiKeys>>,
+  TError = ErrorType<void>,
+>(
+  userId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof adminListUserApiKeys>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getAdminListUserApiKeysQueryKey(userId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof adminListUserApiKeys>>
+  > = ({ signal }) =>
+    adminListUserApiKeys(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof adminListUserApiKeys>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type AdminListUserApiKeysQueryResult = NonNullable<
+  Awaited<ReturnType<typeof adminListUserApiKeys>>
+>;
+export type AdminListUserApiKeysQueryError = ErrorType<void>;
+
+/**
+ * @summary List API keys for a target user (admin)
+ */
+
+export function useAdminListUserApiKeys<
+  TData = Awaited<ReturnType<typeof adminListUserApiKeys>>,
+  TError = ErrorType<void>,
+>(
+  userId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof adminListUserApiKeys>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getAdminListUserApiKeysQueryOptions(userId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create an API key for a target user (admin)
+ */
+export const getAdminCreateUserApiKeyUrl = (userId: string) => {
+  return `/api/admin/users/${userId}/api-keys`;
+};
+
+export const adminCreateUserApiKey = async (
+  userId: string,
+  createApiKeyBody?: CreateApiKeyBody,
+  options?: RequestInit,
+): Promise<CreateApiKeyResponse> => {
+  return customFetch<CreateApiKeyResponse>(
+    getAdminCreateUserApiKeyUrl(userId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(createApiKeyBody),
+    },
+  );
+};
+
+export const getAdminCreateUserApiKeyMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminCreateUserApiKey>>,
+    TError,
+    { userId: string; data: BodyType<CreateApiKeyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminCreateUserApiKey>>,
+  TError,
+  { userId: string; data: BodyType<CreateApiKeyBody> },
+  TContext
+> => {
+  const mutationKey = ["adminCreateUserApiKey"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminCreateUserApiKey>>,
+    { userId: string; data: BodyType<CreateApiKeyBody> }
+  > = (props) => {
+    const { userId, data } = props ?? {};
+
+    return adminCreateUserApiKey(userId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminCreateUserApiKeyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminCreateUserApiKey>>
+>;
+export type AdminCreateUserApiKeyMutationBody = BodyType<CreateApiKeyBody>;
+export type AdminCreateUserApiKeyMutationError = ErrorType<void>;
+
+/**
+ * @summary Create an API key for a target user (admin)
+ */
+export const useAdminCreateUserApiKey = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminCreateUserApiKey>>,
+    TError,
+    { userId: string; data: BodyType<CreateApiKeyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminCreateUserApiKey>>,
+  TError,
+  { userId: string; data: BodyType<CreateApiKeyBody> },
+  TContext
+> => {
+  return useMutation(getAdminCreateUserApiKeyMutationOptions(options));
+};
+
+/**
+ * @summary Revoke an API key for a target user (admin)
+ */
+export const getAdminRevokeUserApiKeyUrl = (userId: string, id: string) => {
+  return `/api/admin/users/${userId}/api-keys/${id}/revoke`;
+};
+
+export const adminRevokeUserApiKey = async (
+  userId: string,
+  id: string,
+  options?: RequestInit,
+): Promise<ApiKeyResponse> => {
+  return customFetch<ApiKeyResponse>(getAdminRevokeUserApiKeyUrl(userId, id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAdminRevokeUserApiKeyMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminRevokeUserApiKey>>,
+    TError,
+    { userId: string; id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminRevokeUserApiKey>>,
+  TError,
+  { userId: string; id: string },
+  TContext
+> => {
+  const mutationKey = ["adminRevokeUserApiKey"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminRevokeUserApiKey>>,
+    { userId: string; id: string }
+  > = (props) => {
+    const { userId, id } = props ?? {};
+
+    return adminRevokeUserApiKey(userId, id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminRevokeUserApiKeyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminRevokeUserApiKey>>
+>;
+
+export type AdminRevokeUserApiKeyMutationError = ErrorType<void>;
+
+/**
+ * @summary Revoke an API key for a target user (admin)
+ */
+export const useAdminRevokeUserApiKey = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminRevokeUserApiKey>>,
+    TError,
+    { userId: string; id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminRevokeUserApiKey>>,
+  TError,
+  { userId: string; id: string },
+  TContext
+> => {
+  return useMutation(getAdminRevokeUserApiKeyMutationOptions(options));
+};
+
+/**
+ * @summary List GHL connections for a target user (admin)
+ */
+export const getAdminListUserGhlConnectionsUrl = (userId: string) => {
+  return `/api/admin/users/${userId}/ghl-connections`;
+};
+
+export const adminListUserGhlConnections = async (
+  userId: string,
+  options?: RequestInit,
+): Promise<GhlConnectionsList> => {
+  return customFetch<GhlConnectionsList>(
+    getAdminListUserGhlConnectionsUrl(userId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getAdminListUserGhlConnectionsQueryKey = (userId: string) => {
+  return [`/api/admin/users/${userId}/ghl-connections`] as const;
+};
+
+export const getAdminListUserGhlConnectionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof adminListUserGhlConnections>>,
+  TError = ErrorType<void>,
+>(
+  userId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof adminListUserGhlConnections>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getAdminListUserGhlConnectionsQueryKey(userId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof adminListUserGhlConnections>>
+  > = ({ signal }) =>
+    adminListUserGhlConnections(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof adminListUserGhlConnections>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type AdminListUserGhlConnectionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof adminListUserGhlConnections>>
+>;
+export type AdminListUserGhlConnectionsQueryError = ErrorType<void>;
+
+/**
+ * @summary List GHL connections for a target user (admin)
+ */
+
+export function useAdminListUserGhlConnections<
+  TData = Awaited<ReturnType<typeof adminListUserGhlConnections>>,
+  TError = ErrorType<void>,
+>(
+  userId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof adminListUserGhlConnections>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getAdminListUserGhlConnectionsQueryOptions(
+    userId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a GHL connection for a target user (admin)
+ */
+export const getAdminCreateUserGhlConnectionUrl = (userId: string) => {
+  return `/api/admin/users/${userId}/ghl-connections`;
+};
+
+export const adminCreateUserGhlConnection = async (
+  userId: string,
+  createGhlConnectionBody: CreateGhlConnectionBody,
+  options?: RequestInit,
+): Promise<GhlConnectionResponse> => {
+  return customFetch<GhlConnectionResponse>(
+    getAdminCreateUserGhlConnectionUrl(userId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(createGhlConnectionBody),
+    },
+  );
+};
+
+export const getAdminCreateUserGhlConnectionMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminCreateUserGhlConnection>>,
+    TError,
+    { userId: string; data: BodyType<CreateGhlConnectionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminCreateUserGhlConnection>>,
+  TError,
+  { userId: string; data: BodyType<CreateGhlConnectionBody> },
+  TContext
+> => {
+  const mutationKey = ["adminCreateUserGhlConnection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminCreateUserGhlConnection>>,
+    { userId: string; data: BodyType<CreateGhlConnectionBody> }
+  > = (props) => {
+    const { userId, data } = props ?? {};
+
+    return adminCreateUserGhlConnection(userId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminCreateUserGhlConnectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminCreateUserGhlConnection>>
+>;
+export type AdminCreateUserGhlConnectionMutationBody =
+  BodyType<CreateGhlConnectionBody>;
+export type AdminCreateUserGhlConnectionMutationError = ErrorType<void>;
+
+/**
+ * @summary Create a GHL connection for a target user (admin)
+ */
+export const useAdminCreateUserGhlConnection = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminCreateUserGhlConnection>>,
+    TError,
+    { userId: string; data: BodyType<CreateGhlConnectionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminCreateUserGhlConnection>>,
+  TError,
+  { userId: string; data: BodyType<CreateGhlConnectionBody> },
+  TContext
+> => {
+  return useMutation(getAdminCreateUserGhlConnectionMutationOptions(options));
+};
+
+/**
+ * @summary Delete a GHL connection for a target user (admin)
+ */
+export const getAdminDeleteUserGhlConnectionUrl = (
+  userId: string,
+  id: string,
+) => {
+  return `/api/admin/users/${userId}/ghl-connections/${id}`;
+};
+
+export const adminDeleteUserGhlConnection = async (
+  userId: string,
+  id: string,
+  options?: RequestInit,
+): Promise<DeleteGhlConnectionResponse> => {
+  return customFetch<DeleteGhlConnectionResponse>(
+    getAdminDeleteUserGhlConnectionUrl(userId, id),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+export const getAdminDeleteUserGhlConnectionMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminDeleteUserGhlConnection>>,
+    TError,
+    { userId: string; id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminDeleteUserGhlConnection>>,
+  TError,
+  { userId: string; id: string },
+  TContext
+> => {
+  const mutationKey = ["adminDeleteUserGhlConnection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminDeleteUserGhlConnection>>,
+    { userId: string; id: string }
+  > = (props) => {
+    const { userId, id } = props ?? {};
+
+    return adminDeleteUserGhlConnection(userId, id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminDeleteUserGhlConnectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminDeleteUserGhlConnection>>
+>;
+
+export type AdminDeleteUserGhlConnectionMutationError = ErrorType<void>;
+
+/**
+ * @summary Delete a GHL connection for a target user (admin)
+ */
+export const useAdminDeleteUserGhlConnection = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminDeleteUserGhlConnection>>,
+    TError,
+    { userId: string; id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminDeleteUserGhlConnection>>,
+  TError,
+  { userId: string; id: string },
+  TContext
+> => {
+  return useMutation(getAdminDeleteUserGhlConnectionMutationOptions(options));
+};
+
+/**
+ * @summary List writeback attempts for a target user (admin)
+ */
+export const getAdminListUserWritebacksUrl = (
+  userId: string,
+  params?: AdminListUserWritebacksParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/admin/users/${userId}/writebacks?${stringifiedParams}`
+    : `/api/admin/users/${userId}/writebacks`;
+};
+
+export const adminListUserWritebacks = async (
+  userId: string,
+  params?: AdminListUserWritebacksParams,
+  options?: RequestInit,
+): Promise<GhlWritebackAttemptsList> => {
+  return customFetch<GhlWritebackAttemptsList>(
+    getAdminListUserWritebacksUrl(userId, params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getAdminListUserWritebacksQueryKey = (
+  userId: string,
+  params?: AdminListUserWritebacksParams,
+) => {
+  return [
+    `/api/admin/users/${userId}/writebacks`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getAdminListUserWritebacksQueryOptions = <
+  TData = Awaited<ReturnType<typeof adminListUserWritebacks>>,
+  TError = ErrorType<void>,
+>(
+  userId: string,
+  params?: AdminListUserWritebacksParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof adminListUserWritebacks>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getAdminListUserWritebacksQueryKey(userId, params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof adminListUserWritebacks>>
+  > = ({ signal }) =>
+    adminListUserWritebacks(userId, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof adminListUserWritebacks>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type AdminListUserWritebacksQueryResult = NonNullable<
+  Awaited<ReturnType<typeof adminListUserWritebacks>>
+>;
+export type AdminListUserWritebacksQueryError = ErrorType<void>;
+
+/**
+ * @summary List writeback attempts for a target user (admin)
+ */
+
+export function useAdminListUserWritebacks<
+  TData = Awaited<ReturnType<typeof adminListUserWritebacks>>,
+  TError = ErrorType<void>,
+>(
+  userId: string,
+  params?: AdminListUserWritebacksParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof adminListUserWritebacks>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getAdminListUserWritebacksQueryOptions(
+    userId,
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 export const getListInvitesUrl = (params?: ListInvitesParams) => {
   const normalizedParams = new URLSearchParams();

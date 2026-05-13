@@ -10,6 +10,7 @@ import Dashboard from "@/pages/dashboard";
 import DemoForm from "@/pages/demo-form";
 import DemoDetail from "@/pages/demo-detail";
 import Settings from "@/pages/settings";
+import AutomationPage from "@/pages/automation";
 import PublicDemo from "@/pages/public-demo";
 import { ProtectedRoute } from "@/components/protected-route";
 import { AppSidebar } from "@/components/layout/app-sidebar";
@@ -78,6 +79,14 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      <Route path="/automation">
+        <ProtectedRoute>
+          <AppSidebar>
+            <AutomationPage />
+          </AppSidebar>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/admin">
         <AdminRoute>
           <AppSidebar>
@@ -90,6 +99,14 @@ function Router() {
         <AdminRoute>
           <AppSidebar>
             <AdminUsers />
+          </AppSidebar>
+        </AdminRoute>
+      </Route>
+
+      <Route path="/admin/users/:userId/automation">
+        <AdminRoute>
+          <AppSidebar>
+            <AutomationPage />
           </AppSidebar>
         </AdminRoute>
       </Route>
