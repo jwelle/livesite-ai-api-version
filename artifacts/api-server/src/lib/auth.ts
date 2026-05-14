@@ -11,6 +11,7 @@ import {
 import { and, eq, sql } from "drizzle-orm";
 import { isBootstrapAdmin } from "../services/audit";
 import { config as appConfig } from "./config";
+import { logger } from "./logger";
 
 export const IMPERSONATION_COOKIE = "lsi_impersonation";
 export const IMPERSONATION_TTL = 8 * 60 * 60 * 1000;
@@ -87,6 +88,42 @@ function getString(
     }
   }
   return null;
+}
+
+function getDatabaseErrorDetails(error: unknown) {
+  if (!(error instanceof Error)) {
+    return { value: error };
+  }
+
+  const pgCause =
+    "cause" in error && error.cause && typeof error.cause === "object"
+      ? (error.cause as Record<string, unknown>)
+      : null;
+
+  return {
+    message: error.message,
+    name: error.name,
+    stack: error.stack,
+    cause: pgCause
+      ? {
+          message:
+            typeof pgCause.message === "string" ? pgCause.message : undefined,
+          code: typeof pgCause.code === "string" ? pgCause.code : undefined,
+          detail:
+            typeof pgCause.detail === "string" ? pgCause.detail : undefined,
+          hint: typeof pgCause.hint === "string" ? pgCause.hint : undefined,
+          schema:
+            typeof pgCause.schema === "string" ? pgCause.schema : undefined,
+          table: typeof pgCause.table === "string" ? pgCause.table : undefined,
+          column:
+            typeof pgCause.column === "string" ? pgCause.column : undefined,
+          constraint:
+            typeof pgCause.constraint === "string"
+              ? pgCause.constraint
+              : undefined,
+        }
+      : undefined,
+  };
 }
 
 function splitFullName(fullName: string | null): {
@@ -190,10 +227,23 @@ async function findExistingUserByClaims(claims: SupabaseAuthClaims) {
     return null;
   }
 
-  const [bySupabaseId] = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.supabaseAuthUserId, supabaseAuthUserId));
+  let bySupabaseId;
+  try {
+    [bySupabaseId] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.supabaseAuthUserId, supabaseAuthUserId));
+  } catch (error) {
+    logger.error(
+      {
+        supabaseAuthUserId,
+        profileEmail: profile.email,
+        dbError: getDatabaseErrorDetails(error),
+      },
+      "Failed to look up app user by Supabase auth user id",
+    );
+    throw error;
+  }
   if (bySupabaseId) return bySupabaseId;
 
   if (!profile.email) return null;
