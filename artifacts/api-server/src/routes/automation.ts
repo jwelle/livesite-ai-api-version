@@ -111,6 +111,15 @@ function shortId(): string {
   return Math.random().toString(36).slice(2, 6);
 }
 
+function isLocalBaseUrl(value: string): boolean {
+  try {
+    const host = new URL(normalizeUrl(value)).hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+  } catch {
+    return false;
+  }
+}
+
 async function getUniqueSlug(base: string): Promise<string> {
   const slug = slugify(base) || "demo";
   for (let attempt = 0; attempt < 10; attempt++) {
@@ -126,7 +135,15 @@ async function getUniqueSlug(base: string): Promise<string> {
 
 function baseUrlFromRequest(req: Request): string {
   const configured = process.env.APP_BASE_URL?.trim();
-  if (configured) return configured.replace(/\/+$/, "");
+  if (configured && (process.env.NODE_ENV !== "production" || !isLocalBaseUrl(configured))) {
+    return normalizeUrl(configured).replace(/\/+$/, "");
+  }
+
+  const vercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (process.env.NODE_ENV === "production" && vercelProductionUrl) {
+    return normalizeUrl(vercelProductionUrl).replace(/\/+$/, "");
+  }
+
   const proto = String(req.headers["x-forwarded-proto"] || req.protocol || "http").split(",")[0];
   const host = req.headers["x-forwarded-host"] || req.headers.host;
   return `${proto}://${host}`.replace(/\/+$/, "");
