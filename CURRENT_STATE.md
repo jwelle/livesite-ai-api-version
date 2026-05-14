@@ -1,49 +1,85 @@
 # Livesite AI Current State
 
-Last updated: May 12, 2026
+Last updated: May 14, 2026
 
-## Active Branch
+## Current Branch
 
 - Branch: `codex/automation-api-v1-routes`
-- Local frontend: `http://localhost:8081`
-- Local API: `http://localhost:8080`
-- Supabase project: `Live Site AI` (`qtxgrkhwspnmzncpvghd`)
+
+## Current Preview URL
+
+- Git-backed Vercel Preview: `https://livesite-ai-api-code-8uivu656h-jonathanwelle-2090s-projects.vercel.app`
+
+## Current Production URL
+
+- Production alias: `https://livesite-ai-api-code.vercel.app`
 
 ## Confirmed Working
 
-- Public frontend demo route works at `/demo/:slug`.
-- Public demo API remains available through `/api/public/demo/:slug`.
-- Manual Chrome verification passed for:
-  - `http://localhost:8081/demo/shoreline-roofing-u3d2`
-  - prospect website background still rendering on the public demo page
-- Automation API v1 routes are live under `/api/v1/*`:
-  - `GET /api/v1/health`
-  - API key create/list/revoke
-  - demo request create/list/detail
-  - GHL connection create/list/delete
-  - writeback create/list
-- Automation setup UI now exists on both surfaces:
-  - `/automation` for self-service user setup
-  - `/admin/users/:userId/automation` for admin-managed tenant setup
-- Automation smoke test passed end to end:
-  - authenticated API key create/list/revoke
-  - API-key demo creation into the normal `demos` table
-  - `demo_requests.demoId` link confirmed
-  - `demos.createdVia`, `externalSource`, `apiKeyId`, and `externalSourceId` confirmed
-  - public URL returned and loaded without login
-  - GHL token metadata returned without exposing the token
-  - writeback tracking create/list confirmed
-  - admin-managed API key and GHL connection flow also passed for a target user
+- Branch `codex/automation-api-v1-routes` is pushed and tracking `origin/codex/automation-api-v1-routes`.
+- Commit `ae57589 Add external test endpoint` added `POST /api/v1/external-test`.
+- Empty commit `12cce32 Trigger Vercel preview redeploy` created the fresh Preview with current env vars.
+- Branch-scoped Vercel Preview env vars exist for:
+  - `SUPABASE_URL`
+  - `DATABASE_URL`
+  - `AUTOMATION_TOKEN_ENCRYPTION_KEY`
+  - `EXTERNAL_TEST_SECRET`
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_PUBLISHABLE_KEY`
+- Git-backed Preview health check succeeds:
+  - `GET /api/v1/health` returned `{"status":"ok","service":"automation-api","version":"v1"}`
+- Production alias health check succeeds:
+  - `GET https://livesite-ai-api-code.vercel.app/api/v1/health` returned `200`.
+  - Response body: `{"status":"ok","service":"automation-api","version":"v1"}`
+- Production `DATABASE_URL` issue was resolved by adding the correctly named uppercase env var:
+  - `DATABASE_URL`
+- Production uses the Supabase Transaction Pooler `DATABASE_URL` on port `6543`.
+- Temporary external test endpoint succeeds:
+  - `POST /api/v1/external-test` returned `200 OK` from Express with `ok: true`.
+  - Vercel Deployment Protection bypass header works.
+  - Zapier successfully reached `POST /api/v1/external-test`.
+  - GoHighLevel Custom Webhook successfully reached `POST /api/v1/external-test`.
+  - External webhook reachability is now proven.
+- Supabase password auth succeeds for the test user.
+- Production `GET /api/auth/user` returns `200` from Express with the app user payload.
+- Production `POST /api/v1/api-keys` returns `201`.
+- No current nested Drizzle/Postgres error appears in logs for `findExistingUserByClaims()`.
+- Local Supabase database contains `public.users`.
+- Required `users` columns exist:
+  - `id`
+  - `supabase_auth_user_id`
+  - `email`
+  - `first_name`
+  - `last_name`
+  - `profile_image_url`
+  - `role`
+  - `status`
+  - `tier`
+  - `last_login_at`
+  - `created_at`
+  - `updated_at`
+
+## Current Blocker
+
+- Production API recovery is confirmed.
+- External reachability is no longer blocked.
+- Supabase-backed app user lookup is no longer blocked in Production.
+- API-key creation is no longer blocked in Production.
+- Next unverified real automation flow is `POST /api/v1/demo-requests` using the generated API key privately.
 
 ## Important Notes
 
-- `demos` is the owned source of truth for API-created demos.
-- `demo_requests` remains an audit/intake record, not a second ownership model.
-- `AUTOMATION_TOKEN_ENCRYPTION_KEY` is now required in any environment that should support GHL connection creation.
-- Real outbound GHL writeback is still intentionally out of scope in this slice; writebacks currently record attempts and metadata only.
+- The earlier stale Preview URL was tied to an older commit and should not be used for testing.
+- The working Preview external-test URL used during testing was:
+  - `https://livesite-ai-api-code-8uivu656h-jonathanwelle-2090s-projects.vercel.app/api/v1/external-test`
+- Production alias should be used for Production health checks:
+  - `https://livesite-ai-api-code.vercel.app`
+- Direct deployment URLs may be behind Vercel Authentication.
+- The Vercel bypass secret used during testing should be rotated.
+- The temporary Supabase test user password should be rotated or deleted when testing is complete.
+- The temporary `/api/v1/external-test` route should be removed before final production hardening unless intentionally retained behind proper auth.
 
-## Next Likely Focus
+## Next Recommended Step
 
-1. Implement real outbound GHL writeback execution as a separate slice.
-2. Confirm Supabase Auth redirect URLs include local and Vercel preview URLs.
-3. Deploy a Vercel preview and set the new automation env var there.
+1. Use the generated API key privately to test `POST /api/v1/demo-requests`.
+2. Do not print API key values, tokens, passwords, `DATABASE_URL`, or other secrets during testing.
