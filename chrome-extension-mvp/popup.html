@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LiveSite AI Demo Builder</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header class="header">
+        <div class="brand-mark" aria-hidden="true">LS</div>
+        <div>
+          <h1>LiveSite AI Demo Builder</h1>
+          <p>Manual prospecting demo creator</p>
+        </div>
+      </header>
+
+      <form id="demo-form" novalidate>
+        <section class="section">
+          <h2>Prospect</h2>
+
+          <label for="business-name">Business Name</label>
+          <input id="business-name" name="businessName" type="text" autocomplete="organization" required>
+
+          <label for="current-page-url">Current Page URL</label>
+          <input id="current-page-url" name="sourceUrl" type="url" inputmode="url" required>
+
+          <label for="website-url">Website URL</label>
+          <input id="website-url" name="websiteUrl" type="url" inputmode="url" placeholder="Optional when the current page is a listing">
+
+          <div class="field-row">
+            <div>
+              <label for="source-type">Source Type</label>
+              <select id="source-type" name="sourceType">
+                <option value="website">website</option>
+                <option value="facebook_page">facebook_page</option>
+                <option value="linkedin_company">linkedin_company</option>
+                <option value="google_business">google_business</option>
+                <option value="yelp_listing">yelp_listing</option>
+                <option value="directory_listing">directory_listing</option>
+                <option value="other">other</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="offer-type">Offer Type</label>
+              <select id="offer-type" name="offerType">
+                <option value="website_chat_demo">website_chat_demo</option>
+                <option value="speed_to_lead_demo">speed_to_lead_demo</option>
+                <option value="missed_call_follow_up_demo">missed_call_follow_up_demo</option>
+                <option value="ai_voice_assistant_demo">ai_voice_assistant_demo</option>
+                <option value="general_ai_demo">general_ai_demo</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>Demo Agent / Settings</h2>
+
+          <label for="default-chat-widget-id">Default Chat Widget ID</label>
+          <input id="default-chat-widget-id" name="defaultChatWidgetId" type="text" placeholder="Optional: paste your default GHL chat widget ID">
+
+          <label for="location-id">GHL Location ID</label>
+          <input id="location-id" name="locationId" type="text" placeholder="Required by the current LiveSite demo request API">
+
+          <label for="api-base-url">API Base URL</label>
+          <input id="api-base-url" name="apiBaseUrl" type="url" inputmode="url" placeholder="https://livesite-ai-api-code.vercel.app">
+
+          <label for="api-key">API Key</label>
+          <input id="api-key" name="apiKey" type="password" autocomplete="off" placeholder="Paste the raw lsi_ API key. The extension sends it as x-api-key.">
+        </section>
+
+        <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+
+        <div class="button-grid">
+          <button id="save-settings" class="button secondary" type="button">Save Settings</button>
+          <button id="create-demo" class="button primary" type="submit">Create Demo</button>
+        </div>
+      </form>
+
+      <section id="results" class="section results" hidden>
+        <h2>Results</h2>
+
+        <label for="demo-url">Demo URL</label>
+        <input id="demo-url" type="url" readonly>
+
+        <label for="outreach-message">Outreach Message</label>
+        <textarea id="outreach-message" rows="5" readonly></textarea>
+
+        <div class="button-grid result-actions">
+          <button id="copy-demo-url" class="button secondary" type="button">Copy Demo URL</button>
+          <button id="copy-outreach-message" class="button secondary" type="button">Copy Outreach Message</button>
+          <button id="open-demo" class="button primary wide" type="button">Open Demo</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

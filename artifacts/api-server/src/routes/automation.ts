@@ -157,6 +157,10 @@ function baseUrlFromRequest(req: Request): string {
   return `${proto}://${host}`.replace(/\/+$/, "");
 }
 
+function demoGateUrl(req: Request, slug: string): string {
+  return `${baseUrlFromRequest(req)}/demo/${slug}`;
+}
+
 function serializeApiKey(row: typeof apiKeysTable.$inferSelect) {
   return {
     id: row.id,
@@ -482,7 +486,7 @@ router.post("/v1/demo-requests", async (req, res) => {
       })
       .returning();
 
-    const publicUrl = `${baseUrlFromRequest(req)}/demo/${demo.slug}`;
+    const publicUrl = demoGateUrl(req, demo.slug);
     await updateRequestStatus(requestRow.id, shouldEnrich ? "enriching" : "publishing", {
       demoId: demo.id,
       publicUrl,
