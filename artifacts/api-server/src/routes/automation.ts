@@ -15,10 +15,13 @@ import {
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { blockDuringImpersonation, requireActiveUser } from "../middlewares/authMiddleware";
 import { encryptAutomationToken } from "../lib/automationCrypto";
+import { config } from "../lib/config";
+import { checkCanCreateDemo } from "../services/usageService";
 import {
   runEnrichment,
   type EnrichInput,
 } from "../services/enrichmentService";
+import { resolveDemoRequestRoute, type DemoRequestAuth } from "./automationRouting";
 
 const router = Router();
 
@@ -46,7 +49,7 @@ const demoRequestBody = z.object({
   companyName: z.string().trim().min(1).optional(),
   prospectName: z.string().trim().min(1).optional(),
   websiteUrl: z.string().trim().min(1),
-  locationId: z.string().trim().min(1).max(128),
+  locationId: z.string().trim().min(1).max(128).optional(),
   contactId: z.string().trim().min(1).optional(),
   opportunityId: z.string().trim().min(1).optional(),
   contactName: z.string().trim().min(1).optional(),
@@ -179,6 +182,7 @@ function serializeGhlConnection(row: typeof ghlConnectionsTable.$inferSelect) {
     id: row.id,
     userId: row.userId,
     locationId: row.locationId,
+    isActive: row.isActive,
     companyId: row.companyId,
     name: row.name,
     authType: row.authType,
@@ -216,7 +220,25 @@ function serializeWriteback(row: typeof ghlWritebackAttemptsTable.$inferSelect) 
   };
 }
 
-async function authenticateApiKey(req: Request, res: Response) {
+type DemoRequestApiAuth =
+  | {
+      kind: "user_api_key";
+      key: typeof apiKeysTable.$inferSelect;
+      user: typeof usersTable.$inferSelect;
+    }
+  | {
+      kind: "shared_api_key";
+      key: null;
+      user: null;
+    };
+
+function matchesSharedApiKey(apiKey: string): boolean {
+  if (config.automationSharedApiKeys.length === 0) return false;
+  const providedHash = hashKey(apiKey);
+  return config.automationSharedApiKeys.some((sharedKey) => hashKey(sharedKey) === providedHash);
+}
+
+async function authenticateApiKey(req: Request, res: Response): Promise<DemoRequestApiAuth | null> {
   const header = req.headers.authorization;
   const bearer = header?.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : "";
   const apiKey = bearer || String(req.headers["x-api-key"] || "").trim();
@@ -233,8 +255,16 @@ async function authenticateApiKey(req: Request, res: Response) {
     .where(and(eq(apiKeysTable.keyHash, keyHash), isNull(apiKeysTable.revokedAt)));
 
   if (!row || row.user.status !== "active") {
-    res.status(401).json({ error: "UNAUTHORIZED", message: "API key is invalid or inactive." });
-    return null;
+    if (!matchesSharedApiKey(apiKey)) {
+      res.status(401).json({ error: "UNAUTHORIZED", message: "API key is invalid or inactive." });
+      return null;
+    }
+
+    return {
+      kind: "shared_api_key",
+      key: null,
+      user: null,
+    };
   }
 
   await db
@@ -242,42 +272,62 @@ async function authenticateApiKey(req: Request, res: Response) {
     .set({ lastUsedAt: new Date() })
     .where(eq(apiKeysTable.id, row.key.id));
 
-  return row;
+  return {
+    kind: "user_api_key",
+    key: row.key,
+    user: row.user,
+  };
 }
 
-async function resolveGhlConnectionForLocation(input: { userId?: string; locationId: string }) {
-  const where = input.userId
-    ? and(eq(ghlConnectionsTable.userId, input.userId), eq(ghlConnectionsTable.locationId, input.locationId))
-    : eq(ghlConnectionsTable.locationId, input.locationId);
-
-  const matches = await db
-    .select()
-    .from(ghlConnectionsTable)
-    .where(where)
-    .limit(2);
-
-  if (matches.length === 1) {
-    return { connection: matches[0]!, error: null as null };
-  }
-
-  if (matches.length === 0) {
+async function resolveGhlConnectionForDemoRequest(auth: DemoRequestApiAuth, locationId: string | undefined) {
+  if (!locationId) {
+    const result = resolveDemoRequestRoute({
+      auth: auth.kind === "user_api_key"
+        ? { kind: "user_api_key", userId: auth.user.id }
+        : { kind: "shared_api_key" },
+      locationId,
+      connections: [],
+      usersById: new Map(),
+    });
     return {
       connection: null,
-      error: {
-        status: 404,
-        code: "GHL_LOCATION_NOT_FOUND",
-        message: "No GHL connection found for this locationId.",
-      },
+      ownerUser: null,
+      error: result.ok ? null : result,
+    };
+  }
+
+  const connections = await db
+    .select()
+    .from(ghlConnectionsTable)
+    .where(eq(ghlConnectionsTable.locationId, locationId));
+
+  const userIds = Array.from(new Set(connections.map((connection) => connection.userId)));
+  const users = userIds.length > 0
+    ? await db.select().from(usersTable).where(inArray(usersTable.id, userIds))
+    : [];
+  const usersById = new Map(users.map((user) => [user.id, user]));
+  const routingAuth: DemoRequestAuth = auth.kind === "user_api_key"
+    ? { kind: "user_api_key", userId: auth.user.id }
+    : { kind: "shared_api_key" };
+  const result = resolveDemoRequestRoute({
+    auth: routingAuth,
+    locationId,
+    connections,
+    usersById,
+  });
+
+  if (!result.ok) {
+    return {
+      connection: null,
+      ownerUser: null,
+      error: result,
     };
   }
 
   return {
-    connection: null,
-    error: {
-      status: 409,
-      code: "GHL_LOCATION_NOT_UNIQUE",
-      message: "Multiple GHL connections found for this locationId. Remove duplicates before creating demos.",
-    },
+    connection: result.connection,
+    ownerUser: result.ownerUser,
+    error: null,
   };
 }
 
@@ -398,7 +448,6 @@ router.get("/v1/demo-requests/:id", requireActiveUser, async (req, res) => {
 router.post("/v1/demo-requests", async (req, res) => {
   const auth = await authenticateApiKey(req, res);
   if (!auth) return;
-  const { user, key } = auth;
 
   const parsed = demoRequestBody.safeParse(req.body);
   if (!parsed.success) {
@@ -419,7 +468,7 @@ router.post("/v1/demo-requests", async (req, res) => {
   const locationId = data.locationId;
   const websiteUrl = normalizeUrl(data.websiteUrl);
   const shouldEnrich = data.options?.enrich === true;
-  const connectionResolution = await resolveGhlConnectionForLocation({ userId: user.id, locationId });
+  const connectionResolution = await resolveGhlConnectionForDemoRequest(auth, locationId);
   if (connectionResolution.error) {
     res.status(connectionResolution.error.status).json({
       error: connectionResolution.error.code,
@@ -428,14 +477,23 @@ router.post("/v1/demo-requests", async (req, res) => {
     return;
   }
   const ghlConnection = connectionResolution.connection;
+  const ownerUser = connectionResolution.ownerUser;
+
+  if (!ownerUser || !ghlConnection) {
+    res.status(403).json({ error: "GHL_LOCATION_NOT_FOUND", message: "No active GHL connection found for this locationId." });
+    return;
+  }
+
+  const allowed = await checkCanCreateDemo(ownerUser, res);
+  if (!allowed) return;
 
   const [requestRow] = await db
     .insert(demoRequestsTable)
     .values({
-      userId: user.id,
+      userId: ownerUser.id,
       source: data.source ?? "api",
       ghlConnectionId: ghlConnection.id,
-      locationId,
+      locationId: locationId!,
       contactId: data.contactId ?? null,
       opportunityId: data.opportunityId ?? null,
       companyName,
@@ -455,17 +513,17 @@ router.post("/v1/demo-requests", async (req, res) => {
     const [settings] = await db
       .select()
       .from(agencySettingsTable)
-      .where(eq(agencySettingsTable.userId, user.id));
+      .where(eq(agencySettingsTable.userId, ownerUser.id));
     const slug = await getUniqueSlug(companyName);
     const [demo] = await db
       .insert(demosTable)
       .values({
-        userId: user.id,
+        userId: ownerUser.id,
         createdVia: "api",
         externalSource: data.source ?? "api",
-        apiKeyId: key.id,
+        apiKeyId: auth.key?.id ?? null,
         externalSourceId: data.opportunityId ?? data.contactId ?? null,
-        locationId,
+        locationId: locationId!,
         companyName,
         slug,
         websiteUrl,

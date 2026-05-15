@@ -7,6 +7,7 @@
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
+    "test:automation-routing": "node ../../node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/cli.mjs --test src/routes/automationRouting.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

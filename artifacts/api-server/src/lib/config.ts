@@ -4,6 +4,10 @@ function parseInt10(value: string | undefined, fallback: number): number {
 }
 
 export const config = {
+  automationSharedApiKeys: (process.env.AUTOMATION_SHARED_API_KEYS ?? process.env.AUTOMATION_SHARED_API_KEY ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0),
   freeUserTotalDemos: parseInt10(process.env.FREE_USER_TOTAL_DEMOS, 1),
   proUserDailyEnrichments: parseInt10(process.env.PRO_USER_DAILY_ENRICHMENTS, 25),
   signupsRequireApproval: (process.env.SIGNUPS_REQUIRE_APPROVAL ?? "true") !== "false",

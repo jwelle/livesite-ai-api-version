@@ -42,6 +42,7 @@ export const ghlConnectionsTable = pgTable(
       .notNull()
       .references(() => usersTable.id, { onDelete: "cascade" }),
     locationId: varchar("location_id", { length: 128 }).notNull(),
+    isActive: boolean("is_active").notNull().default(true),
     companyId: varchar("company_id", { length: 128 }),
     name: text("name").notNull(),
     authType: varchar("auth_type", { length: 64 }).notNull().default("private_integration_token"),
