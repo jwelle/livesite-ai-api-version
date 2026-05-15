@@ -179,7 +179,7 @@ router.get("/admin/users", async (req, res) => {
   const userIds = users.map((u) => u.id);
   const today = getUsageDateString();
 
-  const [demoStats, todayStats, totalEnrich] = await Promise.all([
+  const [demoStats, todayDemoRows, todayStats, totalEnrich] = await Promise.all([
     userIds.length
       ? db
           .select({
@@ -191,6 +191,15 @@ router.get("/admin/users", async (req, res) => {
           .where(inArray(demosTable.userId, userIds))
           .groupBy(demosTable.userId)
       : Promise.resolve([] as Array<{ userId: string; demoCount: number; lastActivity: Date | null }>),
+    userIds.length
+      ? db
+          .select({
+            userId: demosTable.userId,
+            createdAt: demosTable.createdAt,
+          })
+          .from(demosTable)
+          .where(inArray(demosTable.userId, userIds))
+      : Promise.resolve([] as Array<{ userId: string; createdAt: Date }>),
     userIds.length
       ? db
           .select({ userId: dailyUsageTable.userId, c: dailyUsageTable.enrichmentCount })
@@ -210,6 +219,11 @@ router.get("/admin/users", async (req, res) => {
   ]);
 
   const statsMap = new Map(demoStats.map((s) => [s.userId, s]));
+  const demosTodayMap = new Map<string, number>();
+  for (const row of todayDemoRows) {
+    if (getUsageDateString(row.createdAt) !== today) continue;
+    demosTodayMap.set(row.userId, (demosTodayMap.get(row.userId) ?? 0) + 1);
+  }
   const todayMap = new Map(todayStats.map((s) => [s.userId, s.c]));
   const totalMap = new Map(totalEnrich.map((s) => [s.userId, s.c]));
 
@@ -231,6 +245,7 @@ router.get("/admin/users", async (req, res) => {
         lastLoginAt: u.lastLoginAt,
         demoCount: s?.demoCount ?? 0,
         demosCreated: s?.demoCount ?? 0,
+        demosCreatedToday: demosTodayMap.get(u.id) ?? 0,
         enrichmentsToday: todayMap.get(u.id) ?? 0,
         totalEnrichments: totalMap.get(u.id) ?? 0,
         lastActivity: s?.lastActivity ?? null,

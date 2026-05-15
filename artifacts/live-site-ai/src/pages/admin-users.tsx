@@ -279,7 +279,7 @@ function UsersPanel() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">{u.demosCreated}</TableCell>
-                      <TableCell className="text-right">{u.enrichmentsToday}</TableCell>
+                      <TableCell className="text-right">{u.demosCreatedToday}</TableCell>
                       <TableCell className="text-right">{u.totalEnrichments}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {u.lastLoginAt

@@ -1197,7 +1197,7 @@ components:
             - type: 'null'
     AdminUserRow:
       type: object
-      required: [id, email, firstName, lastName, role, status, tier, createdAt, demoCount, demosCreated, enrichmentsToday, totalEnrichments, lastActivity, lastLoginAt]
+      required: [id, email, firstName, lastName, role, status, tier, createdAt, demoCount, demosCreated, demosCreatedToday, enrichmentsToday, totalEnrichments, lastActivity, lastLoginAt]
       properties:
         id: { type: string }
         email: { type: [string, 'null'] }
@@ -1209,6 +1209,7 @@ components:
         createdAt: { type: string, format: date-time }
         demoCount: { type: integer }
         demosCreated: { type: integer }
+        demosCreatedToday: { type: integer }
         enrichmentsToday: { type: integer }
         totalEnrichments: { type: integer }
         lastActivity:

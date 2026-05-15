@@ -76,6 +76,7 @@ export interface AdminUserRow {
   createdAt: string;
   demoCount: number;
   demosCreated: number;
+  demosCreatedToday: number;
   enrichmentsToday: number;
   totalEnrichments: number;
   lastActivity: string | null;
