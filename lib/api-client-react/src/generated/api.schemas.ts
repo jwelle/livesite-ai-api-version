@@ -395,10 +395,12 @@ export type CreateDemoRequestBodyOptions = {
 };
 
 export interface CreateDemoRequestBody {
-  companyName: string;
-  websiteUrl: string;
   /** @nullable */
-  locationId?: string | null;
+  companyName?: string | null;
+  /** @nullable */
+  prospectName?: string | null;
+  websiteUrl: string;
+  locationId: string;
   /** @nullable */
   contactId?: string | null;
   /** @nullable */
@@ -497,6 +499,8 @@ export interface Demo {
   apiKeyId?: string | null;
   /** @nullable */
   externalSourceId?: string | null;
+  /** @nullable */
+  locationId?: string | null;
   companyName: string;
   slug: string;
   websiteUrl: string;
@@ -555,6 +559,9 @@ export interface Demo {
 }
 
 export interface CreateDemoRequestResponse {
+  success: boolean;
+  demoId: string;
+  demoUrl: string;
   demoRequest: DemoRequest;
   demo: Demo;
   publicUrl: string;

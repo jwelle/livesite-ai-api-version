@@ -34,6 +34,7 @@ export const demosTable = pgTable("demos", {
   externalSource: varchar("external_source", { length: 64 }),
   apiKeyId: varchar("api_key_id"),
   externalSourceId: varchar("external_source_id", { length: 128 }),
+  locationId: varchar("location_id", { length: 128 }),
   companyName: text("company_name").notNull(),
   slug: varchar("slug", { length: 200 }).notNull().unique(),
   websiteUrl: text("website_url").notNull(),
@@ -72,6 +73,8 @@ export const demosTable = pgTable("demos", {
   index("IDX_demos_slug").on(table.slug),
   index("IDX_demos_created_via").on(table.createdVia),
   index("IDX_demos_api_key_id").on(table.apiKeyId),
+  index("IDX_demos_location_id").on(table.locationId),
+  index("IDX_demos_user_location_id").on(table.userId, table.locationId),
 ]);
 
 export const insertDemoSchema = createInsertSchema(demosTable).omit({ id: true, viewCount: true, callClickCount: true, calendarClickCount: true, createdAt: true, updatedAt: true });

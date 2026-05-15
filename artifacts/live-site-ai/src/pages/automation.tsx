@@ -142,9 +142,9 @@ export default function AutomationPage() {
   const endpointUrl = `${window.location.origin}/api/v1/demo-requests`;
   const samplePayload = JSON.stringify(
     {
-      companyName: "Acme Roofing",
-      websiteUrl: "https://example.com",
       locationId: "ghl-location-id",
+      prospectName: "Acme Roofing",
+      websiteUrl: "https://example.com",
       contactId: "contact-123",
       opportunityId: "opportunity-123",
       contactName: "Jane Doe",

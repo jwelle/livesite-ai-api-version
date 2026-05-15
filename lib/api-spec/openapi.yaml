@@ -1534,11 +1534,12 @@ components:
 
     CreateDemoRequestBody:
       type: object
-      required: [companyName, websiteUrl]
+      required: [websiteUrl, locationId]
       properties:
-        companyName: { type: string }
+        companyName: { type: [string, 'null'] }
+        prospectName: { type: [string, 'null'] }
         websiteUrl: { type: string }
-        locationId: { type: [string, 'null'] }
+        locationId: { type: string }
         contactId: { type: [string, 'null'] }
         opportunityId: { type: [string, 'null'] }
         contactName: { type: [string, 'null'] }
@@ -1555,8 +1556,11 @@ components:
 
     CreateDemoRequestResponse:
       type: object
-      required: [demoRequest, demo, publicUrl]
+      required: [success, demoId, demoUrl, demoRequest, demo, publicUrl]
       properties:
+        success: { type: boolean }
+        demoId: { type: string }
+        demoUrl: { type: string }
         demoRequest: { $ref: '#/components/schemas/DemoRequest' }
         demo: { $ref: '#/components/schemas/Demo' }
         publicUrl: { type: string }
@@ -1709,6 +1713,8 @@ components:
         apiKeyId:
           type: [string, 'null']
         externalSourceId:
+          type: [string, 'null']
+        locationId:
           type: [string, 'null']
         companyName:
           type: string

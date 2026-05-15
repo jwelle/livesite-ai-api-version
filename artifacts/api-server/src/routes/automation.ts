@@ -16,7 +16,6 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { blockDuringImpersonation, requireActiveUser } from "../middlewares/authMiddleware";
 import { encryptAutomationToken } from "../lib/automationCrypto";
 import {
-  isOpenAIConfigured,
   runEnrichment,
   type EnrichInput,
 } from "../services/enrichmentService";
@@ -44,9 +43,10 @@ const createGhlConnectionBody = z.object({
 });
 
 const demoRequestBody = z.object({
-  companyName: z.string().trim().min(1),
+  companyName: z.string().trim().min(1).optional(),
+  prospectName: z.string().trim().min(1).optional(),
   websiteUrl: z.string().trim().min(1),
-  locationId: z.string().trim().min(1).optional(),
+  locationId: z.string().trim().min(1).max(128),
   contactId: z.string().trim().min(1).optional(),
   opportunityId: z.string().trim().min(1).optional(),
   contactName: z.string().trim().min(1).optional(),
@@ -59,6 +59,14 @@ const demoRequestBody = z.object({
   options: z.object({
     enrich: z.boolean().optional(),
   }).optional(),
+}).superRefine((data, ctx) => {
+  if (!data.companyName && !data.prospectName) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["companyName"],
+      message: "companyName or prospectName is required.",
+    });
+  }
 });
 
 const createWritebackBody = z.object({
@@ -233,6 +241,42 @@ async function authenticateApiKey(req: Request, res: Response) {
   return row;
 }
 
+async function resolveGhlConnectionForLocation(input: { userId?: string; locationId: string }) {
+  const where = input.userId
+    ? and(eq(ghlConnectionsTable.userId, input.userId), eq(ghlConnectionsTable.locationId, input.locationId))
+    : eq(ghlConnectionsTable.locationId, input.locationId);
+
+  const matches = await db
+    .select()
+    .from(ghlConnectionsTable)
+    .where(where)
+    .limit(2);
+
+  if (matches.length === 1) {
+    return { connection: matches[0]!, error: null as null };
+  }
+
+  if (matches.length === 0) {
+    return {
+      connection: null,
+      error: {
+        status: 404,
+        code: "GHL_LOCATION_NOT_FOUND",
+        message: "No GHL connection found for this locationId.",
+      },
+    };
+  }
+
+  return {
+    connection: null,
+    error: {
+      status: 409,
+      code: "GHL_LOCATION_NOT_UNIQUE",
+      message: "Multiple GHL connections found for this locationId. Remove duplicates before creating demos.",
+    },
+  };
+}
+
 async function updateRequestStatus(
   id: string,
   status: string,
@@ -358,24 +402,39 @@ router.post("/v1/demo-requests", async (req, res) => {
     return;
   }
   const data = parsed.data;
+  const companyName = data.companyName ?? data.prospectName;
+  if (!companyName) {
+    res.status(400).json({ error: "VALIDATION_ERROR", message: "companyName or prospectName is required." });
+    return;
+  }
   if (!isValidHttpUrl(data.websiteUrl)) {
     res.status(400).json({ error: "VALIDATION_ERROR", message: "websiteUrl must be a valid http(s) URL." });
     return;
   }
 
-  const locationId = data.locationId ?? "external-api";
+  const locationId = data.locationId;
   const websiteUrl = normalizeUrl(data.websiteUrl);
-  const shouldEnrich = data.options?.enrich ?? isOpenAIConfigured();
+  const shouldEnrich = data.options?.enrich === true;
+  const connectionResolution = await resolveGhlConnectionForLocation({ userId: user.id, locationId });
+  if (connectionResolution.error) {
+    res.status(connectionResolution.error.status).json({
+      error: connectionResolution.error.code,
+      message: connectionResolution.error.message,
+    });
+    return;
+  }
+  const ghlConnection = connectionResolution.connection;
 
   const [requestRow] = await db
     .insert(demoRequestsTable)
     .values({
       userId: user.id,
       source: data.source ?? "api",
+      ghlConnectionId: ghlConnection.id,
       locationId,
       contactId: data.contactId ?? null,
       opportunityId: data.opportunityId ?? null,
-      companyName: data.companyName,
+      companyName,
       websiteUrl,
       contactName: data.contactName ?? null,
       email: data.email ?? null,
@@ -393,7 +452,7 @@ router.post("/v1/demo-requests", async (req, res) => {
       .select()
       .from(agencySettingsTable)
       .where(eq(agencySettingsTable.userId, user.id));
-    const slug = await getUniqueSlug(data.companyName);
+    const slug = await getUniqueSlug(companyName);
     const [demo] = await db
       .insert(demosTable)
       .values({
@@ -402,7 +461,8 @@ router.post("/v1/demo-requests", async (req, res) => {
         externalSource: data.source ?? "api",
         apiKeyId: key.id,
         externalSourceId: data.opportunityId ?? data.contactId ?? null,
-        companyName: data.companyName,
+        locationId,
+        companyName,
         slug,
         websiteUrl,
         industry: data.industry ?? null,
@@ -471,6 +531,9 @@ router.post("/v1/demo-requests", async (req, res) => {
     });
 
     res.status(201).json({
+      success: true,
+      demoId: published.id,
+      demoUrl: publicUrl,
       demoRequest: completed,
       demo: published,
       publicUrl,
