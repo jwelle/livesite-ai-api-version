@@ -11,6 +11,7 @@ import DemoForm from "@/pages/demo-form";
 import DemoDetail from "@/pages/demo-detail";
 import Settings from "@/pages/settings";
 import AutomationPage from "@/pages/automation";
+import DemoSplashPage from "@/pages/demo-splash";
 import PublicDemo from "@/pages/public-demo";
 import { ProtectedRoute } from "@/components/protected-route";
 import { AppSidebar } from "@/components/layout/app-sidebar";
@@ -36,7 +37,8 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/auth/callback" component={AuthCallback} />
-      <Route path="/demo/:slug" component={PublicDemo} />
+      <Route path="/demo/:slug/live" component={PublicDemo} />
+      <Route path="/demo/:slug" component={DemoSplashPage} />
       
       {/* App Routes */}
       <Route path="/dashboard">
